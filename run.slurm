@@ -1,0 +1,18 @@
+#!/bin/bash 
+#SBATCH --job-name=fetch_train
+#SBATCH --open-mode=append
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=4
+#SBATCH --time=20:00:00
+#SBATCH --mem=64GB
+#SBATCH --mail-type=END
+#SBATCH --gres=gpu
+#SBATCH --array=0
+#SBATCH --output=output/%j_%x_%N.out
+#SBATCH --error=error/%j_%x_%N.err
+#SBATCH --export=ALL
+module purge
+
+bash /scratch/sh6317/research/run-singularity.sh \
+     /scratch/sh6317/research/proto/config_script.sh
