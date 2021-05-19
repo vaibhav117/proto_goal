@@ -15,14 +15,14 @@ def parse_args(s=None):
     parser.add_argument('--action_repeat', default=2, type=int) # finger- 2 cartpole- 8 rest- 4
     parser.add_argument('--max_episode_steps', default=50, type=int)
     parser.add_argument('--reward_type', default='dense', type=str)
-    parser.add_argument('--fixed', default=True,type=bool)
+    parser.add_argument('--fixed', default=False,type=bool)
 
     # train
     parser.add_argument('--num_train_steps', default=500000, type=int)
     parser.add_argument('--num_expl_steps', default=250000, type=int)
     parser.add_argument('--num_random_steps', default=1000, type=int)
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
-    parser.add_argument('--seed', default=959, type=int)
+    parser.add_argument('--seed', default=100, type=int)
     
     #eval 
     parser.add_argument('--eval_frequency', default=20000, type=int)

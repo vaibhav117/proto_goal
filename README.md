@@ -1,24 +1,11 @@
-# Proto-RL: Reinforcement Learning with Prototypical Representations
+# GOAL Proto-RL: GOAL conditioned Reinforcement Learning with Prototypical Representations
 
-This is a PyTorch implementation of **Proto-RL** from
+This is a PyTorch implementation of **Goal conditioned Proto-RL** 
 
-**Reinforcement Learning with Prototypical Representations** by
 
-[Denis Yarats](https://cs.nyu.edu/~dy1042/), [Rob Fergus](https://cs.nyu.edu/~fergus/pmwiki/pmwiki.php), [Alessandro Lazaric](http://chercheurs.lille.inria.fr/~lazaric/Webpage/Home/Home.html), [Lerrel Pinto](https://cs.nyu.edu/~lp91/).
 
-[[Paper]](https://arxiv.org/abs/2102.11271)
 
-## Citation
-If you use this repo in your research, please consider citing the paper as follows
-```
-@article{yarats2021proto,
-    title={Reinforcement Learning with Prototypical Representations},
-    author={Denis Yarats and Rob Fergus and Alessandro Lazaric and Lerrel Pinto},
-    year={2021},
-    eprint={2102.11271},
-    archivePrefix={arXiv},
-    primaryClass={cs.ML}
-}
+
 ```
 
 ## Requirements
@@ -32,9 +19,10 @@ conda activate proto
 ```
 
 ## Instructions
-In order to pretrain the agent you need to specify the number of task-agnostic environment steps by setting `num_expl_steps`, after that many steps, the agent will start receving the downstream task reward until it takes `num_train_steps` in total. For example, to pre-train the Proto-RL agent on `Cheetah Run` task unsupervisely for 500k environment steps and then train it further with the downstream reward for another 500k steps, you can run:
+1. Train proto-rl on the FetchEnv with fixed goal for num_expl_steps .Input the saved model dir for training goal conditioned RL 
+2. Train Proto-rl aloong with a goal conditioned policy
 ```
-python train.py env=cheetah_run num_expl_steps=250000 num_train_steps=500000
+python train.py env=fetch_reach  fixed=False
 ```
 Note that we divede the number of steps by action repeat, which is set to 2 for all the environments.
 

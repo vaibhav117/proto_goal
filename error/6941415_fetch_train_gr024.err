@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "fetch_train.py", line 424, in <module>
+    ob = ScratchTrain(args)
+  File "fetch_train.py", line 248, in __init__
+    self.L = Logger(self.args.exp_dir, save_tb=args.log_save_tb,
+  File "/scratch/sh6317/research/proto_goal/logger.py", line 127, in __init__
+    assert agent in AGENT_TRAIN_FORMAT
+AssertionError

@@ -51,3 +51,5 @@ class ReplayBuffer(object):
         discounts = torch.as_tensor(discounts, device=self.device)
 
         return obses, actions, rewards, next_obses, discounts
+
+

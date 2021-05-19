@@ -278,6 +278,7 @@ class FrameStack(gym.Wrapper):
         gym.Wrapper.__init__(self, env)
         self._k = k
         self._frames = deque([], maxlen=k)
+        self.goal_frames=deque([], maxlen=k)
         wrapped_observation_space= env.observation_space
         self.observation_space=OrderedDict()
         pixels_spec = wrapped_observation_space['image_observation']
@@ -287,34 +288,46 @@ class FrameStack(gym.Wrapper):
             shape=np.concatenate([[pixels_spec.shape[2] * k], pixels_spec.shape[:2]], axis=0),
             dtype=env.observation_space['image_observation'].dtype
         )
+        self.observation_space['desired_goal_image'] = gym.spaces.Box(
+            low=0,
+            high=255,
+            shape=np.concatenate([[pixels_spec.shape[2] * k], pixels_spec.shape[:2]], axis=0),
+            dtype=env.observation_space['desired_goal_image'].dtype
+        )
+        
+        
         self.observation_space['observation']= wrapped_observation_space['observation']
         self.observation_space['desired_goal'] = wrapped_observation_space['desired_goal']
         self.observation_space['achieved_goal']= wrapped_observation_space['achieved_goal']
-        self.observation_space['desired_goal_image'] = wrapped_observation_space['desired_goal_image']
 
     def reset(self): 
           ##TODO  framestack goal image? 
         obs = self.env.reset()
-        pixels = obs['image_observation'].transpose(2, 0, 1).copy()
+        image_observation = obs['image_observation'].transpose(2, 0, 1).copy()
+        desired_goal_image = obs['desired_goal_image'].transpose(2, 0, 1).copy()
         for _ in range(self._k):
-            self._frames.append(pixels)
+            self._frames.append(image_observation)
+            self.goal_frames.append(desired_goal_image)
         return self._transform_observation(obs)
 
     def step(self, action): 
         obs, reward, done, info = self.env.step(action)
         self._frames.append(obs['image_observation'].transpose(2,0,1).copy())
+        self.goal_frames.append(obs['desired_goal_image'].transpose(2,0,1).copy())
         # print(obs)
         return self._transform_observation(obs), reward, done, info
 
     def _transform_observation(self, observation):
         assert len(self._frames) == self._k
+        assert len(self.goal_frames) == self._k
         obs = OrderedDict()
         obs['observation'] = observation['observation']
         obs['achieved_goal'] = observation['achieved_goal']
         obs['desired_goal'] = observation['desired_goal']
         obs['image_observation'] = np.concatenate(list(self._frames), axis=0)
-        obs['desired_goal_image'] = observation['desired_goal_image'].transpose(2,0,1).copy()
-        # obs['desired_goal_image'] = np.concatenate(list(self.goal_frames), axis=0) ##TODO goal stack
+        # obs['desired_goal_image'] = observation['desired_goal_image'].transpose(2,0,1).copy()
+        
+        obs['desired_goal_image'] = np.concatenate(list(self.goal_frames), axis=0) 
         # obs= spaces.Dict(obs)
         observation.update(obs)
         return observation
@@ -362,6 +375,25 @@ class FetchReachImageEnv(FetchImageEnv,EzPickle):
 
 
 
+class FetchSlideImageEnv(FetchImageEnv,EzPickle):
+    def __init__(self, reward_type=REWARD_TYPE,fixed=True):
+        initial_qpos = {
+            'robot0:slide0': 0.05,
+            'robot0:slide1': 0.48,
+            'robot0:slide2': 0.0,
+            'object0:joint': [1.7, 1.1, 0.41, 1., 0., 0., 0.],
+        }
+        FetchImageEnv.__init__(
+            self, MODEL_XML_PATH, has_object=True, block_gripper=True, n_substeps=20,
+            gripper_extra_height=-0.02, target_in_the_air=False, target_offset=np.array([0.4, 0.0, 0.0]),
+            obj_range=0.1, target_range=0.3, distance_threshold=0.05,
+            initial_qpos=initial_qpos, reward_type=reward_type, fixed=fixed)
+
+
+        EzPickle.__init__(self)
+
+
+        
 def make(env_name, frame_stack, action_repeat,max_episode_steps=50, seed=5,fixed=True, reward_type="sparse"):
 
 
@@ -370,6 +402,7 @@ def make(env_name, frame_stack, action_repeat,max_episode_steps=50, seed=5,fixed
         reach_env = ActionRepeat(reach_env,amount=action_repeat)
         reach_env = FrameStack(reach_env,k=frame_stack)
         reach_env = TimeLimit(reach_env,max_episode_steps=max_episode_steps)
+    
     # else:
     #     env = suite.load(domain,
     #                      task,

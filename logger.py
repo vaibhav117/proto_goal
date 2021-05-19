@@ -19,6 +19,7 @@ COMMON_EVAL_FORMAT = [('episode', 'E', 'int'), ('step', 'S', 'int'),
 
 AGENT_TRAIN_FORMAT = {
     'proto_rl': [],
+    'sac_rl': []
 }
 
 
