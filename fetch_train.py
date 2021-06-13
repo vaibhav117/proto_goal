@@ -224,7 +224,7 @@ class ScratchTrain():
    
     def evaluate(self,step):
         avg_episode_reward = 0
-        eval_video_recorder = VideoRecorder(self.args.exp_dir if self.args.save_video else None)
+        eval_video_recorder = VideoRecorder(os.path.join(self.args.exp_dir,"video") if self.args.save_video else None)
         for episode in range(self.args.num_eval_episodes):
             obs = self.eval_env.reset() 
             eval_video_recorder.init(enabled=(episode == 0))
@@ -442,7 +442,7 @@ class GoalRL():
 
     def evaluate(self,step):
         avg_episode_reward = 0
-        eval_video_recorder = VideoRecorder(self.args.exp_dir if self.args.save_video else None)
+        eval_video_recorder = VideoRecorder(os.path.join(self.args.exp_dir,'video') if self.args.save_video else None)
         for episode in range(self.args.num_eval_episodes):
             obs = self.eval_env.reset() 
             eval_video_recorder.init(enabled=(episode == 0))

@@ -1,5 +1,6 @@
 import os
 import sys
+from MakeTreeDir.makedir import MAKETREEDIR
 
 import imageio
 import numpy as np
@@ -8,8 +9,11 @@ import utils
 
 
 class VideoRecorder(object):
-    def __init__(self, root_dir, height=500, width=500, fps=30):
-        self.save_dir = utils.make_dir(root_dir, 'video') if root_dir else None
+    def __init__(self, video_dir, height=500, width=500, fps=30):
+        # self.save_dir = utils.make_dir(root_dir, 'video') if root_dir else None
+        directory = MAKETREEDIR()
+        directory.makedir(video_dir)
+        self.save_dir = video_dir
         self.height = height
         self.width = width
         self.fps = fps

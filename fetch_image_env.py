@@ -120,8 +120,8 @@ class FetchImageEnv(robot_env.RobotEnv):
             'observation': obs.copy(),
             'achieved_goal': achieved_goal.copy(),
             'desired_goal': self.goal,
-            "image_observation": current_image, # achieved goal can be derived from observation
-            "desired_goal_image":goal_image
+            "image_observation": current_image.transpose(2,0,1), # achieved goal can be derived from observation
+            "desired_goal_image":goal_image.transpose(2,0,1),
         }
 
     def _sample_goal(self):
@@ -301,10 +301,11 @@ class FrameStack(gym.Wrapper):
         self.observation_space['achieved_goal']= wrapped_observation_space['achieved_goal']
 
     def reset(self): 
-          ##TODO  framestack goal image? 
         obs = self.env.reset()
-        image_observation = obs['image_observation'].transpose(2, 0, 1).copy()
-        desired_goal_image = obs['desired_goal_image'].transpose(2, 0, 1).copy()
+        # image_observation = obs['image_observation'].transpose(2, 0, 1).copy()
+        # desired_goal_image = obs['desired_goal_image'].transpose(2, 0, 1).copy()
+        image_observation = obs['image_observation'].copy()
+        desired_goal_image = obs['desired_goal_image'].copy()
         for _ in range(self._k):
             self._frames.append(image_observation)
             self.goal_frames.append(desired_goal_image)
@@ -312,8 +313,11 @@ class FrameStack(gym.Wrapper):
 
     def step(self, action): 
         obs, reward, done, info = self.env.step(action)
-        self._frames.append(obs['image_observation'].transpose(2,0,1).copy())
-        self.goal_frames.append(obs['desired_goal_image'].transpose(2,0,1).copy())
+        # self._frames.append(obs['image_observation'].transpose(2,0,1).copy())
+        # self.goal_frames.append(obs['desired_goal_image'].transpose(2,0,1).copy())
+        self._frames.append(obs['image_observation'].copy())
+        self.goal_frames.append(obs['desired_goal_image'].copy())
+
         # print(obs)
         return self._transform_observation(obs), reward, done, info
 
@@ -374,7 +378,6 @@ class FetchReachImageEnv(FetchImageEnv,EzPickle):
 
 
 
-
 class FetchSlideImageEnv(FetchImageEnv,EzPickle):
     def __init__(self, reward_type=REWARD_TYPE,fixed=True):
         initial_qpos = {
@@ -416,7 +419,15 @@ def make(env_name, frame_stack, action_repeat,max_episode_steps=50, seed=5,fixed
     print(reach_env.seed(seed))
     
     return reach_env
+def make_sb3_env(env_name, action_repeat=2 ,max_episode_steps=50, seed=5, fixed=False, reward_type="dense"):
+    
+    if env_name == 'fetch_reach':
+        reach_env = FetchReachImageEnv(reward_type=reward_type, fixed=fixed)
+        reach_env =  ActionRepeat(reach_env, amount=action_repeat)
+        reach_env = TimeLimit(reach_env, max_episode_steps= max_episode_steps)
+        print(reach_env.seed(seed))
 
+    return reach_env
 
 # from gym.envs.registration import registry, register, make, spec
 # register(
@@ -427,3 +438,8 @@ def make(env_name, frame_stack, action_repeat,max_episode_steps=50, seed=5,fixed
 
 ## TODO Check _reset_sim for has_object later for fixed goal setting / rendering 
 ## TODO find out if render or get_image is faster
+# print(__name__)
+if __name__ == "__main__":
+    print("calling from main")
+    env =  make_sb3_env("fetch_env", action_repeat=2)
+    print(env)
