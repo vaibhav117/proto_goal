@@ -20,7 +20,7 @@ from custom_feature_extractor import CustomCombinedExtractor
 from stable_baselines3.common.type_aliases import Schedule
 from custom_her_replay_buffer import HerReplayBuffer
 import pdb
-pdb.set_trace()
+# pdb.set_trace()
 # env = gym.make('HalfCheetah-v2')
 
 # while True:
@@ -59,18 +59,20 @@ max_episode_length = 50
 env = make_sb3_env(env_name="fetch_reach", action_repeat=2, max_episode_steps=50, seed=10, fixed=False, reward_type="dense")
 
 feature_extractor_class = CustomCombinedExtractor
-feature_extractor_kwargs = [env.observation_space]
+feature_extractor_kwargs = dict(features_dim=128)
 
 # custom_td3_policy= CustomTD3Policy(env.observation_space, env.action_space,
                                 #    )
 policy_kwargs = {
     
-    "feature_extractor_class" : feature_extractor_class,
-    "feature_extractor_kwargs" : feature_extractor_kwargs,
-    "normalize_images": False
+    "features_extractor_class" : feature_extractor_class,
+    "features_extractor_kwargs" : feature_extractor_kwargs,
+    "normalize_images": False,
+    "net_arch":[1024,1024]
+
 }
 
-model = TD3(policy="CustomTD3Policy", env=env,learning_rate=1e-3,buffer_size=1000000,
+model = TD3(policy="CustomTD3Policy", env=env,learning_rate=1e-3,buffer_size=100000,
             replay_buffer_class=HerReplayBuffer,
     # Parameters for HER
             replay_buffer_kwargs=dict(
@@ -86,3 +88,21 @@ model = TD3(policy="CustomTD3Policy", env=env,learning_rate=1e-3,buffer_size=100
              )
 
 print(model)
+model.learn(total_timesteps=200000, log_interval=1000)
+model.save("td3_fetch")
+
+print("model trained and saved")
+
+obs = env.reset()
+v = VideoRecorder(video_dir="./video")
+v.init(enabled=True)
+for i in range(200):
+    action, _states = model.predict(obs)
+    obs, reward, done, info = env.step(action)
+    # env.render(mode="human")
+    v.record(env)
+    count+=1
+    if done:
+        print(count)
+        count=0
+        obs = env.reset()

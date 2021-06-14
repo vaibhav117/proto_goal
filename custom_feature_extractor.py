@@ -6,11 +6,11 @@ import utils
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 class CustomCombinedExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space: gym.spaces.Dict):
+    def __init__(self, observation_space: gym.spaces.Dict, features_dim: int=256):
         # We do not know features-dim here before going over all the items,
         # so put something dummy for now. PyTorch requires calling
         # nn.Module.__init__ before adding modules  
-        super(CustomCombinedExtractor, self).__init__(observation_space, features_dim=1)
+        super(CustomCombinedExtractor, self).__init__(observation_space, features_dim=features_dim)
 
         obs_shape = observation_space['image_observation'].shape
 
@@ -22,9 +22,18 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                                   nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
                                   nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
                                   nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
-                                  nn.ReLU())
+                                  nn.ReLU(), nn.Flatten(),)
 
-        self.repr_dim = 32 * 35 * 35  
+        with th.no_grad():
+            n_flatten = self.conv(
+                th.as_tensor(observation_space.sample()["image_observation"]).float().unsqueeze(0)
+            ).shape[1]
+
+            # print(n_flatten,"------------------------- n-flatten")
+
+        self.linear = nn.Sequential(nn.Linear(n_flatten, features_dim), nn.ReLU())
+
+        # self.repr_dim = 32 * 35 * 35  
         self.apply(utils.weight_init)
 
     def forward(self, observations, key) -> th.Tensor:
@@ -37,7 +46,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         # return th.cat(encoded_tensor_list, dim=1)
         observations = observations[key]
         observations =observations / 255.
-        h = self.conv(observations)
-        h= h.view(h.shape[0], -1) 
+        h = self.linear(self.conv(observations))
+        # h= h.view(h.shape[0], -1) 
+        # print(h)
         return h
 

@@ -26,27 +26,43 @@ from stable_baselines3.common.utils import polyak_update
 from stable_baselines3.td3.policies import TD3Policy, Actor
 from stable_baselines3.common.type_aliases import Schedule
 
+
+
+def achieved_goal_from_obs(obs) -> str:
+    temp=None
+    if "achieved_goal_image" in obs.keys():
+        temp = "achieved_goal_image"
+
+    elif "image_observation" in obs.keys():
+        temp="image_observation"
+
+    return temp
+
+# def create_mlp(2*features_dim, action_dim, net_arch, activation_fn, squash_output=True):
+    
+
+
 class CustomActor(Actor):
     """
     Actor network (policy) for TD3.
     """
     def __init__(self, observation_space,action_space, net_arch,
-                 feature_extractor, feature_dim, activation_fn, normalize_images=False):
+                 features_extractor, features_dim, activation_fn, normalize_images=False):
         
-        super(CustomActor, self).__init__(self, observation_space,action_space, net_arch,
-              feature_extractor, feature_dim, activation_fn, normalize_images)
+        super().__init__( observation_space,action_space, net_arch,
+              features_extractor, features_dim, activation_fn, normalize_images)
         # Define custom network with Dropout
         # WARNING: it must end with a tanh activation to squash the output
         # keep normalize_images = False when calling function
         action_dim = get_action_dim(self.action_space)
-        
-
-        actor_net = create_mlp(feature_dim, action_dim, net_arch, activation_fn, squash_output=True)
-        self.mu = nn.Sequential(actor_net)
+        actor_net = create_mlp(2*features_dim, action_dim, net_arch, activation_fn, squash_output=True)
+        self.mu = nn.Sequential(*actor_net)
         self.apply(utils.weight_init)
 
     def forward(self,obs): 
-        features1 = self.feature_extractor(obs, "achieved_goal_image")
+        temp =achieved_goal_from_obs(obs)
+
+        features1 = self.features_extractor(obs, temp)
         features2 = self.features_extractor(obs, "desired_goal_image")
         features = th.cat([features1,features2], dim=1)
         return self.mu(features)
@@ -82,7 +98,7 @@ class CustomContinuousCritic(BaseModel):
         self.n_critics = n_critics
         self.q_networks = []
         for idx in range(n_critics):
-            q_net = create_mlp(features_dim + action_dim, 1, net_arch, activation_fn)
+            q_net = create_mlp(2*features_dim + action_dim, 1, net_arch, activation_fn)
             q_net = nn.Sequential(*q_net)
             self.add_module(f"qf{idx}", q_net)
             self.q_networks.append(q_net)
@@ -93,8 +109,9 @@ class CustomContinuousCritic(BaseModel):
         # Learn the features extractor using the policy loss only
         # when the features_extractor is shared with the actor
         with th.set_grad_enabled(not self.share_features_extractor):
-            features_obs = self.feature_extractor(obs,"")
-            features_goal = self.feature_extractor(obs,"desired_goal_image")
+            temp=achieved_goal_from_obs(obs)
+            features_obs = self.features_extractor(obs,temp)
+            features_goal = self.features_extractor(obs,"desired_goal_image")
             features = th.cat([features_obs, features_goal], dim=1)
             
         qvalue_input = th.cat([features, actions], dim=1)
@@ -107,7 +124,8 @@ class CustomContinuousCritic(BaseModel):
         (e.g. when updating the policy in TD3).
         """
         with th.no_grad():
-            features_achieved_goal = self.feature_extractor(obs, "achieved_goal_image")
+            temp=achieved_goal_from_obs(obs)
+            features_achieved_goal = self.features_extractor(obs, temp)
             featured_desired_goal = self.features_extractor(obs, "desired_goal_image")
             features = th.cat([features_achieved_goal,featured_desired_goal], dim=1)
         return self.q_networks[0](th.cat([features, actions], dim=1))

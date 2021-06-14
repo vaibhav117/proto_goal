@@ -138,6 +138,7 @@ class HerReplayBuffer(DictReplayBuffer):
             "reward": (1,),
             "next_obs": (1,) + self.obs_shape,
             "next_achieved_goal": (1,) + self.goal_shape,
+            "next_achieved_goal_image":(1,) + self.goal_image_shape,
             "next_desired_goal": (1,) + self.goal_shape,
             "next_desired_goal_image" :  (1,) + self.goal_image_shape,
             "done": (1,),
@@ -357,8 +358,8 @@ class HerReplayBuffer(DictReplayBuffer):
                 # therefore we have to use "next_achieved_goal" and not "achieved_goal"
                 transitions["next_achieved_goal"][her_indices, 0],
                 # here we use the new desired goal
-                transitions["desired_goal"][her_indices, 0]
-                # transitions["info"][her_indices, 0],
+                transitions["desired_goal"][her_indices, 0],
+                transitions["info"][her_indices, 0],
             )
 
         # concatenate observation with (desired) goal
@@ -377,9 +378,9 @@ class HerReplayBuffer(DictReplayBuffer):
         next_observations = self._normalize_obs(next_observations, maybe_vec_env)
 
         if online_sampling:
-            next_obs = {key: self.to_torch(next_observations[key][:, 0, :]) for key in self._observation_keys}
+            next_obs = {key: self.to_torch(next_observations[key][:, 0, :]) for key in next_observations.keys()}
 
-            normalized_obs = {key: self.to_torch(observations[key][:, 0, :]) for key in self._observation_keys}
+            normalized_obs = {key: self.to_torch(observations[key][:, 0, :]) for key in next_observations.keys()}
 
             return DictReplayBufferSamples(
                 observations=normalized_obs,
@@ -411,22 +412,22 @@ class HerReplayBuffer(DictReplayBuffer):
         else:
             done_ = done
 
-        self._buffer["observation"][self.pos][self.current_idx] = obs["observation"]
-        self._buffer["achieved_goal"][self.pos][self.current_idx] = obs["achieved_goal"]
-        self._buffer["achieved_goal_image"][self.pos][self.current_idx] = obs["image_observation"]
+        self._buffer["observation"][self.pos][self.current_idx] = obs["observation"].copy()
+        self._buffer["achieved_goal"][self.pos][self.current_idx] = obs["achieved_goal"].copy()
+        self._buffer["achieved_goal_image"][self.pos][self.current_idx] = obs["image_observation"].copy()
 
-        self._buffer["desired_goal"][self.pos][self.current_idx] = obs["desired_goal"]
-        self._buffer["desired_goal_image"][self.pos][self.current_idx] = obs["desired_goal_image"]
+        self._buffer["desired_goal"][self.pos][self.current_idx] = obs["desired_goal"].copy()
+        self._buffer["desired_goal_image"][self.pos][self.current_idx] = obs["desired_goal_image"].copy()
 
         self._buffer["action"][self.pos][self.current_idx] = action
         self._buffer["done"][self.pos][self.current_idx] = done_
         self._buffer["reward"][self.pos][self.current_idx] = reward
-        self._buffer["next_obs"][self.pos][self.current_idx] = next_obs["observation"]
-        self._buffer["next_achieved_goal"][self.pos][self.current_idx] = next_obs["achieved_goal"]
-        self._buffer["next_achieved_goal_image"][self.pos][self.current_idx] = next_obs["image_observation"]
+        self._buffer["next_obs"][self.pos][self.current_idx] = next_obs["observation"].copy()
+        self._buffer["next_achieved_goal"][self.pos][self.current_idx] = next_obs["achieved_goal"].copy()
+        self._buffer["next_achieved_goal_image"][self.pos][self.current_idx] = next_obs["image_observation"].copy()
 
-        self._buffer["next_desired_goal"][self.pos][self.current_idx] = next_obs["desired_goal"]
-        self._buffer["next_desired_goal_image"][self.pos][self.current_idx] = next_obs["desired_goal_image"]
+        self._buffer["next_desired_goal"][self.pos][self.current_idx] = next_obs["desired_goal"].copy()
+        self._buffer["next_desired_goal_image"][self.pos][self.current_idx] = next_obs["desired_goal_image"].copy()
 
 
         # When doing offline sampling
