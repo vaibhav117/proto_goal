@@ -12,7 +12,6 @@
 #SBATCH --output=output/%j_%x_%N.out
 #SBATCH --error=error/%j_%x_%N.err
 #SBATCH --export=ALL
-module purge
 
 bash /scratch/sh6317/research/run-singularity.sh \
-     /scratch/sh6317/research/proto/config_script.sh
+     /scratch/sh6317/research/proto_goal/config_script.sh

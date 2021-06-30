@@ -30,3 +30,5 @@ This will produce the `exp_local` folder, where all the outputs are going to be 
 ```
 tensorboard --logdir exp_local
 ```
+
+Point mass env from https://github.com/jhejna/morphology-transfer/blob/main/bot_transfer/envs/assets/point_mass.xml 

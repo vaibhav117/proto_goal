@@ -431,7 +431,7 @@ def make_sb3_env(env_name, action_repeat=2 ,max_episode_steps=50, seed=5, fixed=
 
 # from gym.envs.registration import registry, register, make, spec
 # register(
-#         id='FetchReachImageEnv-{}-v0'.format(REWARD_TYPE),
+#         id='fetch_reach_image-v0',
 #         entry_point='fetch_image_env:FetchReachImageEnv',
 #         max_episode_steps=50,
 #     )
@@ -439,7 +439,7 @@ def make_sb3_env(env_name, action_repeat=2 ,max_episode_steps=50, seed=5, fixed=
 ## TODO Check _reset_sim for has_object later for fixed goal setting / rendering 
 ## TODO find out if render or get_image is faster
 # print(__name__)
-if __name__ == "__main__":
-    print("calling from main")
-    env =  make_sb3_env("fetch_env", action_repeat=2)
-    print(env)
+# if __name__ == "__main__":
+#     print("calling from main")
+#     env =  make_sb3_env("fetch_env", action_repeat=2)
+#     print(env)

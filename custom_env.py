@@ -3,8 +3,8 @@ import numpy as np
 import gym
 import tempfile
 import xml.etree.ElementTree as ET
-from sb3.base import GoalEnv
-
+from base import GoalEnv
+from gym.wrappers import Monitor,TimeLimit
 class Reach(GoalEnv):
     TARGET_SIZE = None
     ARENA_SPACE_LOW = None
@@ -15,36 +15,18 @@ class Reach(GoalEnv):
     SURVIVE_REWARD = 0
     VISUALIZE = False
 
-    def __init__(self, model_path=None):
+    def __init__(self,initial_qpos,  seed=None,model_path=None):
         self.target = self.ARENA_SPACE_HIGH # Init to far away from agent start.
         self.num_reached = 0
         if model_path is None:
-            model_path = os.path.join(os.path.dirname(__file__), "assets", self.ASSET)
-        if self.VISUALIZE:
-            xml_path = os.path.join(os.path.dirname(__file__), "assets", model_path)
-            tree = ET.parse(xml_path)
-            world_body = tree.find(".//worldbody")
-            _, xml_path = tempfile.mkstemp(text=True, suffix='.xml')
-            target_elem = ET.Element('body')
-            target_elem.set("name", "target")
-            target_elem.set("pos", "0 0 " + str(self.TARGET_SIZE))
-            target_geom = ET.SubElement(target_elem, "geom")
-            target_geom.set("conaffinity", "0")
-            target_geom.set("contype", "0")
-            target_geom.set("name", "target")
-            target_geom.set("pos", "0 0 0")
-            target_geom.set("rgba", "0.2 0.9 0.2 0.8")
-            target_geom.set("size", str(self.TARGET_SIZE))
-            target_geom.set("type", "sphere")
-            world_body.insert(-1, target_elem)
-            tree.write(xml_path)
-        else:
-            xml_path = None
+            model_path = self.ASSET
+#         xml_path = os.path.join("./assets", self.ASSET)
         
-        super(Reach, self).__init__(model_path=xml_path)
+        
+        super(Reach, self).__init__(initial_qpos=initial_qpos, model_path=model_path)
 
-    def _get_obs(self):
-        return NotImplemented
+    def get_obs(self):
+        pass
 
     def compute_reward(self, achieved_goal, desired_goal, info):
         dist_to_target = np.linalg.norm(achieved_goal - desired_goal)
@@ -53,12 +35,13 @@ class Reach(GoalEnv):
             reward += self.SPARSE_REWARD
         reward += self.SURVIVE_REWARD
         return reward
+    
 
     def step(self, action):
         self.do_simulation(action, self.frame_skip)
-        obs = self._get_obs()
+        obs = self.get_obs()
         desired_goal = self.target
-        achieved_goal = self.skill_obs(obs)[:self.TARGET_DIM]
+        achieved_goal = obs['achieved_goal']
         reward = self.compute_reward(achieved_goal, desired_goal, None)
         done = False
         if np.linalg.norm(achieved_goal - desired_goal) < self.TARGET_SIZE:
@@ -66,34 +49,126 @@ class Reach(GoalEnv):
         return obs, reward, done, {'success' : done}
         
 class ReachNav(Reach):
-    ARENA_SPACE_LOW = np.array([-8.0, -8.0])
-    ARENA_SPACE_HIGH = np.array([8.0, 8.0])
-    SKILL_DIM = 2
-    TARGET_DIM = 2
-    TASK_DIM = 4 # agent position, target position
-    TARGET_SIZE = 0.5
-    REWARD_SCALE = 0.1
-    SPARSE_REWARD = 50
-    VISUALIZE = True
+    def __init__(self, initial_qpos,seed):
+        self.SKILL_DIM = 2
+        self.TARGET_DIM = 2
+        self.TASK_DIM = 4 # agent position, target position
+        self.TARGET_SIZE = 0.6
+        self.REWARD_SCALE = 0.1
+        self.SPARSE_REWARD = 50
+        self.VISUALIZE = True
+        self.target_range=5
+        
+        super(ReachNav, self).__init__(initial_qpos,seed)
 
 class Reach_PointMass(ReachNav):
-    ASSET = 'point_mass.xml'
-    AGENT_DIM = 2
-    FRAME_SKIP = 3
+    
+    
+    def __init__(self, initial_qpos,seed=10 ,fixed=False):
+        self.ASSET = 'point_mass.xml'
+        self.AGENT_DOF = 2
+        self.FRAME_SKIP = 3
+        self.fixed=fixed
+        super(Reach_PointMass, self).__init__(initial_qpos,seed)
 
-    def _get_obs(self):
+   
+    def viewer_setup(self):
+        self.viewer.cam.distance = 14
+        self.viewer.cam.azimuth = 90.
+        self.viewer.cam.elevation = -90.0
+        self.viewer.cam.lookat[0] = -0.05821135
+        self.viewer.cam.lookat[1] = 0.
+        self.viewer.cam.lookat[2] = 0.5
+        #pass
+    def get_image(self, width=400, height=400):
+        # move the target outside the camera frame 
+        site_id = self.sim.model.site_name2id('target0')
+        self.sim.model.site_pos[site_id] =  self.sim.data.site_xpos[0]
+        self.sim.forward()
+        self._get_viewer("rgb_array").render(width,height)
+        data = self._get_viewer("rgb_array").read_pixels(width, height, depth=False)
+        assert data is not None,"sim.render is None"
+        return data[::-1,:,:]
+    
+    
+    def get_goal_image(self):
+        desired_goal= self.target
+        # move gripper to goal , take image and reset()
+        # grip_pos = self.sim.data.get_site_xpos('robot0:grip') # current gripper state
+        current_torso =  self.model.body_pos[-2][:2]
+        self.model.body_pos[-2][:2] = self.target # moving torso to target position 
+#         for _ in range(10):
+#             self.sim.step()
+        
+        # self._render_callback() = None
+        
+        
+        goal_image =  self.get_image() 
+
+        self.model.body_pos[-2][:2] = current_torso
+#         for _ in range(10):
+#             self.sim.step()
+        return goal_image.copy()
+    
+    def get_obs(self):
         return {
             'observation' : np.concatenate((self.sim.data.qvel.flat[:],
                                             self.get_body_com("torso")[:2]), axis=0),
+            
             'achieved_goal' : self.get_body_com("torso")[:2],
             'desired_goal' : self.target,
+            'image_observation': self.get_image(),
+            'desire_goal_image': self.get_goal_image()
+            
+            
         }
+        
+    
+    def render_callback(self):
+        sites_offset = (self.sim.data.site_xpos - self.sim.model.site_pos).copy()
+        site_id = self.sim.model.site_name2id('target0')
+        self.sim.model.site_pos[site_id][:2]= self.target - sites_offset[0][:2]
+        self.sim.forward()
 
+    
+        ## bring the site to the target location 
     def reset(self):
-        self.target = self.np_random.uniform(low=self.ARENA_SPACE_LOW, high=self.ARENA_SPACE_HIGH)
-        if self.VISUALIZE:
-            self.model.body_pos[-2][:self.TARGET_DIM] = self.target
+        # randomize target
+       
+        
         qpos = self.init_qpos + self.np_random.uniform(low=-self.TARGET_SIZE, high=self.TARGET_SIZE, size=self.model.nq)
-        qvel = self.init_qvel + self.np_random.uniform(low=-0.2, high=0.2, size=self.model.nv)
+        qvel = self.init_qvel + self.np_random.uniform(low=-0.4, high=0.4, size=self.model.nv)
         self.set_state(qpos, qvel)
-        return self._get_obs()
+        
+        
+        if not self.fixed:
+            
+            self.target=  self.np_random.uniform(low=-self.target_range, high=self.target_range, size=2)
+            self.target += self.sim.data.qpos.ravel().copy()
+        return self.get_obs()
+
+    
+    def _env_setup(self, initial_qpos):
+        for name, value in initial_qpos.items():
+            self.sim.data.set_joint_qpos(name, value)
+#         utils.reset_mocap_welds(self.sim)
+        # calling forward rewrite the values in self.data 
+        self.sim.forward()
+#         self.initial_pos = self.init_qpos + self.np_random.uniform(low=-0.2, high=0.2, size=self.AGENT_DOF)
+        self.target= self.np_random.uniform(low=-self.target_range, high=self.target_range, size=2)
+
+
+
+
+
+
+def make_sb3_point_env():
+
+    initial_qpos = {
+            'ballx': 0,
+            'bally': 0
+            
+        }
+    point_env = Reach_PointMass(initial_qpos,seed=0)
+    point_env = TimeLimit(point_env,max_episode_steps=100)
+    return point_env

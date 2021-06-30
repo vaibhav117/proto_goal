@@ -131,3 +131,10 @@ __pycache__/
 .ipynb_checkpoints/
 exp_local
 data/
+error/
+experiments/
+fetch_reach_tensorboard/
+log/
+output/
+td3_fetch.zip
+video/

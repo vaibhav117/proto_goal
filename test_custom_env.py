@@ -1,8 +1,10 @@
 
+from proto_goal.custom_env import make_sb3_point_env
 import gym
 print(__name__)
 import numpy as np
 import sys
+import os
 from stable_baselines3 import  SAC, DDPG, TD3
 from stable_baselines3.common.noise import NormalActionNoise
 # from stable_baselines3.her import   HerReplayBuffer
@@ -19,7 +21,10 @@ from custom_feature_extractor import CustomCombinedExtractor
 # env=make(env_name="fetch_reach", frame_stack=3, action_repeat=2, max_episode_steps=50, fixed=False, reward_type="dense")
 from stable_baselines3.common.type_aliases import Schedule
 from custom_her_replay_buffer import HerReplayBuffer
-import pdb
+from MakeTreeDir import MAKETREEDIR
+from callbacks import SaveOnBestTrainingRewardCallback,ProgressBarManager, EvalCallback
+from stable_baselines3.common.monitor import Monitor
+from custom_env import make_sb3_point_env
 # pdb.set_trace()
 # env = gym.make('HalfCheetah-v2')
 
@@ -53,56 +58,98 @@ import pdb
 
 # v.save('400_fetch.mp4')
 
-goal_selection_strategy = "future"
-online_sampling = True
-max_episode_length = 50
-env = make_sb3_env(env_name="fetch_reach", action_repeat=2, max_episode_steps=50, seed=10, fixed=False, reward_type="dense")
 
-feature_extractor_class = CustomCombinedExtractor
-feature_extractor_kwargs = dict(features_dim=128)
 
-# custom_td3_policy= CustomTD3Policy(env.observation_space, env.action_space,
-                                #    )
-policy_kwargs = {
-    
-    "features_extractor_class" : feature_extractor_class,
-    "features_extractor_kwargs" : feature_extractor_kwargs,
-    "normalize_images": False,
-    "net_arch":[1024,1024]
+def train(env,work_dir):    
+    model_dir = os.path.join(work_dir, "model")
+    os.makedirs(model_dir, exist_ok=True)
+    env= Monitor(env, os.path.join(model_dir, "monitor.csv"))
 
-}
+    feature_extractor_class = CustomCombinedExtractor
+    feature_extractor_kwargs = dict(features_dim=128)
 
-model = TD3(policy="CustomTD3Policy", env=env,learning_rate=1e-3,buffer_size=100000,
-            replay_buffer_class=HerReplayBuffer,
-    # Parameters for HER
-            replay_buffer_kwargs=dict(
-                n_sampled_goal=4,
-                goal_selection_strategy=goal_selection_strategy,
-                online_sampling=online_sampling,
-                max_episode_length=max_episode_length,
-            ),
-            policy_kwargs=policy_kwargs,
-            seed = 10,
-            verbose=1,
+    # custom_td3_policy= CustomTD3Policy(env.observation_space, env.action_space,
+                                    #    )
+    policy_kwargs = {
+        
+        "features_extractor_class" : feature_extractor_class,
+        "features_extractor_kwargs" : feature_extractor_kwargs,
+        "normalize_images": False,
+        "net_arch":[1024,1024]
 
-             )
+    }
+    n_actions = env.action_space.shape[-1]
+    action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
 
-print(model)
-model.learn(total_timesteps=200000, log_interval=1000)
-model.save("td3_fetch")
+    model = TD3(policy="CustomTD3Policy", env=env,learning_rate=1e-3,buffer_size=100000,
+                replay_buffer_class=HerReplayBuffer,
+        # Parameters for HER
+                replay_buffer_kwargs=dict(
+                    n_sampled_goal=4,
+                    goal_selection_strategy=goal_selection_strategy,
+                    online_sampling=online_sampling,
+                    max_episode_length=max_episode_length,
+                ),
+                policy_kwargs=policy_kwargs,
+                seed = 10,
+                verbose=1,
+                tensorboard_log=os.path.join(work_dir, "tensorboard_log"),
+                embedding_space_distance= False,
+                monitor_wrapper =True, 
+                action_noise = action_noise
+                )
 
-print("model trained and saved")
+    print(model)
+    eval_callback = EvalCallback(eval_env=env,n_eval_episodes=5,eval_freq=5000, log_dir=model_dir)
+    with ProgressBarManager(200001) as progress_callback: # this the garanties th,at the tqdm progress bar closes correctly
+        # model.learn(2000, callback=callback), 
+        model.learn(total_timesteps=200001, log_interval=1000, callback=[eval_callback,progress_callback])
+    # model.save(os.path.join(work_dir, "model/td3"))
 
-obs = env.reset()
-v = VideoRecorder(video_dir="./video")
-v.init(enabled=True)
-for i in range(200):
-    action, _states = model.predict(obs)
-    obs, reward, done, info = env.step(action)
-    # env.render(mode="human")
-    v.record(env)
-    count+=1
-    if done:
-        print(count)
-        count=0
-        obs = env.reset()
+    print("model trained and saved")
+
+
+
+def eval_and_save_video(env,work_dir):
+    model = TD3.load(os.path.join(work_dir, "model/best_model"), env)
+
+    count = 0
+    rewards=[]
+    episode_reward = 0
+    obs = env.reset()
+    v = VideoRecorder(video_dir="./video")
+    v.init(enabled=True)
+    for i in range(200):
+        action, _states = model.predict(obs)
+        obs, reward, done, info = env.step(action)
+        episode_reward += reward
+        # env.render(mode="human")
+        v.record(env)
+        count+=1
+        if done:
+            print(count)
+            rewards.append(episode_reward)
+            episode_reward=0
+            count=0
+            obs = env.reset()
+
+    print("Average reward on evaluation" , np.mean(np.array(rewards)))
+
+    v.save(os.path.join(work_dir,"video/200.mp4"))
+
+
+if __name__ == '__main__':
+    goal_selection_strategy = "future"
+    online_sampling = True
+    max_episode_length = 50
+    env = make_sb3_env(env_name="fetch_reach", action_repeat=2, max_episode_steps=50, seed=10, fixed=False, reward_type="dense")
+    # eval(env, model_path="td3_fetch")
+    # eval(env=env, model_path="td3_fetch")
+    # env = make_sb3_point_env()
+
+
+    work_dir="/scratch/sh6317/research/proto_goal/experiments/fetch_reach2"
+    directory = MAKETREEDIR()
+    directory.makedir(work_dir)
+    train(env, work_dir=work_dir)
+    ## TODO check what model.get_env() stores

@@ -7,13 +7,15 @@ from torch.nn import functional as F
 
 from stable_baselines3.common import logger
 from stable_baselines3.common.buffers import ReplayBuffer
-from stable_baselines3.common.noise import ActionNoise
+from stable_baselines3.common.noise import ActionNoise, NormalActionNoise
 from stable_baselines3.common.off_policy_algorithm import OffPolicyAlgorithm
 from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedule
 from stable_baselines3.common.utils import polyak_update
 from stable_baselines3.td3.policies import TD3Policy
 from stable_baselines3.common.buffers import DictReplayBuffer, ReplayBuffer
 from custom_her_replay_buffer import HerReplayBuffer
+
+
 class TD3(OffPolicyAlgorithm):
     """
     Twin Delayed DDPG (TD3)
@@ -78,13 +80,15 @@ class TD3(OffPolicyAlgorithm):
         policy_delay: int = 2,
         target_policy_noise: float = 0.2,
         target_noise_clip: float = 0.5,
-        tensorboard_log: Optional[str] = None,
+        tensorboard_log: Optional[str] = "log",
         create_eval_env: bool = False,
         policy_kwargs: Dict[str, Any] = None,
         verbose: int = 0,
         seed: Optional[int] = None,
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
+        monitor_wrapper:bool = True, 
+        embedding_space_distance = False,
     ):
 
         super(TD3, self).__init__(
@@ -111,15 +115,31 @@ class TD3(OffPolicyAlgorithm):
             sde_support=False,
             optimize_memory_usage=optimize_memory_usage,
             supported_action_spaces=(gym.spaces.Box),
+            monitor_wrapper= monitor_wrapper
         )
 
         self.policy_delay = policy_delay
         self.target_noise_clip = target_noise_clip
         self.target_policy_noise = target_policy_noise
-        self.reward_func = env.compute_reward  ## use Feature extractor when needed 
+      ## use Feature extractor when needed 
+        
 
         if _init_setup_model:
             self._setup_model()
+
+        if embedding_space_distance:
+            env.set_attr("compute_reward", compute_repr_dist_reward)
+
+    def compute_repr_dist_reward(self,o, g, info=None):
+        with th.no_grad():
+
+            features_o = self.features_extractor(o, "achieved_goal_image")
+            features_g = self.features_extractor(g, "desired_goal_image")
+
+            return F.CosineSimilarity(features_o,features_g,dim=1)
+
+        
+
 
     def _setup_model(self) -> None:
         self._setup_lr_schedule()
@@ -149,7 +169,6 @@ class TD3(OffPolicyAlgorithm):
 
             self.replay_buffer = HerReplayBuffer(
                 self.env,
-                self.reward_func,
                 self.buffer_size,
                 self.device,
                 replay_buffer=replay_buffer,

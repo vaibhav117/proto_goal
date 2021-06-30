@@ -66,7 +66,6 @@ class HerReplayBuffer(DictReplayBuffer):
     def __init__(
         self,
         env: VecEnv,
-        reward_func,
         buffer_size: int,
         device: Union[th.device, str] = "cpu",
         replay_buffer: Optional[DictReplayBuffer] = None,
@@ -103,7 +102,7 @@ class HerReplayBuffer(DictReplayBuffer):
 
         self.env = env
         self.buffer_size = her_buffer_size
-        self.reward_func = reward_func
+        # self.reward_func = reward_func
 
         if online_sampling:
             replay_buffer = None
@@ -349,7 +348,7 @@ class HerReplayBuffer(DictReplayBuffer):
         # no virtual transition can be created
         if len(her_indices) > 0:
             # Vectorized computation of the new reward
-            transitions["reward"][her_indices, 0] = self.reward_func(
+            transitions["reward"][her_indices, 0] = self.env.env_method('compute_reward',
                 # the new state depends on the previous state and action
                 # s_{t+1} = f(s_t, a_t)
                 # so the next_achieved_goal depends also on the previous state and action
