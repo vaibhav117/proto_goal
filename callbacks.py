@@ -111,8 +111,8 @@ class EvalCallback(BaseCallback):
   def _init_callback(self) -> None:
 
         # Create folder if needed
-    if self.save_path is not None:
-      os.makedirs(self.save_path, exist_ok=True)
+    if self.log_dir is not None:
+      os.makedirs(self.log_dir, exist_ok=True)
   
   def _on_step(self):
     """

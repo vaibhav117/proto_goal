@@ -1,5 +1,5 @@
 
-from proto_goal.custom_env import make_sb3_point_env
+from custom_env import make_sb3_point_env
 import gym
 print(__name__)
 import numpy as np
@@ -148,7 +148,7 @@ if __name__ == '__main__':
     # env = make_sb3_point_env()
 
 
-    work_dir="/scratch/sh6317/research/proto_goal/experiments/fetch_reach2"
+    work_dir="./experiments/fetch_reach2"
     directory = MAKETREEDIR()
     directory.makedir(work_dir)
     train(env, work_dir=work_dir)
