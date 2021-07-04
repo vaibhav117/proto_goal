@@ -96,7 +96,7 @@ class Reach_PointMass(ReachNav):
     
 
     
-    def get_goal_image(self):
+    def get_goal_image(self, width=84,height=84):
         desired_goal= self.target
         # grip_pos = self.sim.data.get_site_xpos('robot0:grip') # current gripper state
         # move point_mass to target , take image and move back
@@ -112,7 +112,7 @@ class Reach_PointMass(ReachNav):
         # self._render_callback() = None
         
         
-        goal_image =  self.get_image() 
+        goal_image =  self.get_image(width=width, height=height) 
         
         self.set_state(qpos, qvel)
         self.sim.forward()
@@ -127,8 +127,8 @@ class Reach_PointMass(ReachNav):
             
             'achieved_goal' : self.get_body_com("torso")[:2],
             'desired_goal' : self.target,
-            'image_observation': self.get_image(),
-            'desire_goal_image': self.get_goal_image()
+            'image_observation': self.get_image(width=84,height=84).transpose(2,0,1),
+            'desired_goal_image': self.get_goal_image(width=84,height=84).transpose(2,0,1)
             
             
         }

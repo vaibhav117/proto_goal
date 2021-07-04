@@ -111,8 +111,8 @@ class EvalCallback(BaseCallback):
   def _init_callback(self) -> None:
 
         # Create folder if needed
-    if self.save_path is not None:
-      os.makedirs(self.save_path, exist_ok=True)
+    if self.log_dir is not None:
+      os.makedirs(self.log_dir, exist_ok=True)
   
   def _on_step(self):
     """
@@ -135,7 +135,7 @@ class EvalCallback(BaseCallback):
       # and update self.best_mean_reward
       if mean_reward > self.best_mean_reward:
         self.best_mean_reward = mean_reward
-        self.model.save(self.save_path)
+        self.model.save(self.log_dir)
         if self.verbose > 0:
           print("Saving new best model at {} timesteps".format(self.n_calls))
           print("Saving new best model to {}.zip".format(self.save_best))
