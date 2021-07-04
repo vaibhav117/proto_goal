@@ -1,9 +1,6 @@
 
-<<<<<<< HEAD
 from custom_env import make_sb3_point_env
-=======
 # from proto_goal.custom_env import make_sb3_point_env
->>>>>>> a4c23544901b58a9f792bd085df116298dab205a
 import gym
 print(__name__)
 import numpy as np
