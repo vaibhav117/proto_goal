@@ -1,10 +1,9 @@
 import os
 import numpy as np
-import gym
-import tempfile
-import xml.etree.ElementTree as ET
 from base import GoalEnv
-from gym.wrappers import Monitor,TimeLimit
+from gym.wrappers import TimeLimit
+import gym
+from gym.envs.robotics import utils
 class Reach(GoalEnv):
     TARGET_SIZE = None
     ARENA_SPACE_LOW = None
@@ -22,7 +21,7 @@ class Reach(GoalEnv):
             model_path = self.ASSET
 #         xml_path = os.path.join("./assets", self.ASSET)
         
-        
+        self.init_site=None
         super(Reach, self).__init__(initial_qpos=initial_qpos, model_path=model_path)
 
     def get_obs(self):
@@ -69,8 +68,11 @@ class Reach_PointMass(ReachNav):
         self.AGENT_DOF = 2
         self.FRAME_SKIP = 3
         self.fixed=fixed
+        
         super(Reach_PointMass, self).__init__(initial_qpos,seed)
-
+        self.init_site = self.sim.model.site_pos[0].copy()
+        
+        
    
     def viewer_setup(self):
         self.viewer.cam.distance = 14
@@ -83,29 +85,37 @@ class Reach_PointMass(ReachNav):
     def get_image(self, width=400, height=400):
         # move the target outside the camera frame 
         site_id = self.sim.model.site_name2id('target0')
-        self.sim.model.site_pos[site_id] =  self.sim.data.site_xpos[0]
-        self.sim.forward()
+        if self.init_site is not None :
+            
+            self.sim.model.site_pos[site_id] =  self.init_site 
+            self.sim.forward()
         self._get_viewer("rgb_array").render(width,height)
         data = self._get_viewer("rgb_array").read_pixels(width, height, depth=False)
         assert data is not None,"sim.render is None"
         return data[::-1,:,:]
     
+
     
-    def get_goal_image(self):
+    def get_goal_image(self, width=84,height=84):
         desired_goal= self.target
-        # move gripper to goal , take image and reset()
         # grip_pos = self.sim.data.get_site_xpos('robot0:grip') # current gripper state
-        current_torso =  self.model.body_pos[-2][:2]
-        self.model.body_pos[-2][:2] = self.target # moving torso to target position 
+        # move point_mass to target , take image and move back
+        
+        qpos = self.sim.get_state().qpos
+        qvel = self.sim.get_state().qvel
+       
+        self.set_state(self.target, qvel)
+        self.sim.forward()
 #         for _ in range(10):
 #             self.sim.step()
         
         # self._render_callback() = None
         
         
-        goal_image =  self.get_image() 
-
-        self.model.body_pos[-2][:2] = current_torso
+        goal_image =  self.get_image(width=width, height=height) 
+        
+        self.set_state(qpos, qvel)
+        self.sim.forward()
 #         for _ in range(10):
 #             self.sim.step()
         return goal_image.copy()
@@ -117,8 +127,8 @@ class Reach_PointMass(ReachNav):
             
             'achieved_goal' : self.get_body_com("torso")[:2],
             'desired_goal' : self.target,
-            'image_observation': self.get_image(),
-            'desire_goal_image': self.get_goal_image()
+            'image_observation': self.get_image(width=84,height=84).transpose(2,0,1),
+            'desired_goal_image': self.get_goal_image(width=84,height=84).transpose(2,0,1)
             
             
         }
@@ -129,6 +139,8 @@ class Reach_PointMass(ReachNav):
         site_id = self.sim.model.site_name2id('target0')
         self.sim.model.site_pos[site_id][:2]= self.target - sites_offset[0][:2]
         self.sim.forward()
+        pass
+
 
     
         ## bring the site to the target location 
@@ -137,7 +149,7 @@ class Reach_PointMass(ReachNav):
        
         
         qpos = self.init_qpos + self.np_random.uniform(low=-self.TARGET_SIZE, high=self.TARGET_SIZE, size=self.model.nq)
-        qvel = self.init_qvel + self.np_random.uniform(low=-0.4, high=0.4, size=self.model.nv)
+        qvel = self.init_qvel + self.np_random.uniform(low=-0.2, high=0.4, size=self.model.nv)
         self.set_state(qpos, qvel)
         
         
@@ -160,15 +172,13 @@ class Reach_PointMass(ReachNav):
 
 
 
-
-
-def make_sb3_point_env():
+def make_sb3_point_env(seed=0):
 
     initial_qpos = {
             'ballx': 0,
             'bally': 0
             
         }
-    point_env = Reach_PointMass(initial_qpos,seed=0)
+    point_env = Reach_PointMass(initial_qpos,seed=seed)
     point_env = TimeLimit(point_env,max_episode_steps=100)
     return point_env

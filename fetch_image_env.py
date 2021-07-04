@@ -399,7 +399,6 @@ class FetchSlideImageEnv(FetchImageEnv,EzPickle):
         
 def make(env_name, frame_stack, action_repeat,max_episode_steps=50, seed=5,fixed=True, reward_type="sparse"):
 
-
     if env_name == 'fetch_reach':
         reach_env = FetchReachImageEnv(reward_type=reward_type,fixed=fixed)
         reach_env = ActionRepeat(reach_env,amount=action_repeat)
@@ -419,6 +418,7 @@ def make(env_name, frame_stack, action_repeat,max_episode_steps=50, seed=5,fixed
     print(reach_env.seed(seed))
     
     return reach_env
+    
 def make_sb3_env(env_name, action_repeat=2 ,max_episode_steps=50, seed=5, fixed=False, reward_type="dense"):
     
     if env_name == 'fetch_reach':

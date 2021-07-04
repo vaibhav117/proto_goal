@@ -15,14 +15,20 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         obs_shape = observation_space['image_observation'].shape
 
      
+        self.conv = nn.Sequential(
+            nn.Conv2d(obs_shape[0], 32, kernel_size=8, stride=4, padding=0),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=0),
+            nn.ReLU(),
+            nn.Flatten(),
+        )
 
 
-
-        self.conv = nn.Sequential(nn.Conv2d(obs_shape[0], 32, 3, stride=2),
-                                  nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
-                                  nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
-                                  nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
-                                  nn.ReLU(), nn.Flatten(),)
+        # self.conv = nn.Sequential(nn.Conv2d(obs_shape[0], 32, 3, stride=2),
+        #                           nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
+        #                           nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
+        #                           nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
+        #                           nn.ReLU(), nn.Flatten(),)
 
         with th.no_grad():
             n_flatten = self.conv(

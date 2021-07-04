@@ -56,7 +56,9 @@ class Env(gym.Env):
     FRAME_SKIP = None
     NSUBSTEPS = 1
     
-    def __init__(self, model_path=None, frame_skip=None):
+    def __init__(self, initial_qpos, model_path=None, frame_skip=None, seed=5):
+        self.seed(seed=seed)
+
         if model_path is None:
             model_path = self.ASSET
         if frame_skip is None:
@@ -78,7 +80,7 @@ class Env(gym.Env):
             'render.modes': ['human', 'rgb_array', 'depth_array'],
             'video.frames_per_second': int(np.round(1.0 / self.dt))
         }
-
+        self._env_setup(initial_qpos=initial_qpos)
         self.init_qpos = self.sim.data.qpos.ravel().copy()
         self.init_qvel = self.sim.data.qvel.ravel().copy()
 
@@ -86,14 +88,15 @@ class Env(gym.Env):
         low, high = bounds.T
         self.action_space = spaces.Box(low=low, high=high, dtype=np.float32)
 
-        action = self.action_space.sample()
-        observation, _reward, done, _info = self.step(action)
-        assert not done
+        # action = self.action_space.sample()
+        # observation, _reward, done, _info = self.step(action)'
+        observation = self.get_obs()
+        # self.goal = self.get_goal()
+        # assert not done
 
         # Set the observation space
         self.observation_space = convert_observation_to_space(observation)
 
-        self.seed()
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -148,6 +151,8 @@ class Env(gym.Env):
                height=400,
                camera_id=None,
                camera_name=None):
+
+
         if mode == 'rgb_array':
             if camera_id is not None and camera_name is not None:
                 raise ValueError("Both `camera_id` and `camera_name` cannot be"
@@ -159,6 +164,7 @@ class Env(gym.Env):
 
             if camera_id is None and camera_name in self.model._camera_name2id:
                 camera_id = self.model.camera_name2id(camera_name)
+            self.render_callback()
 
             self._get_viewer(mode).render(width, height, camera_id=camera_id)
             # window size used for old mujoco-py:
@@ -199,6 +205,11 @@ class Env(gym.Env):
     def get_site_com(self, site_name):
         return self.data.get_site_xpos(site_name)
 
+    def render_callback(self):
+        pass
+    def _env_setup(self):
+        pass
+
 class GoalEnv(gym.GoalEnv, Env):
 
     def agent_obs(self, obs):
@@ -209,6 +220,5 @@ class GoalEnv(gym.GoalEnv, Env):
 
     def task_obs(self, obs):
         return obs['observation'][-self.TASK_DIM:]
-
 
 

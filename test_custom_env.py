@@ -1,5 +1,9 @@
 
+<<<<<<< HEAD
 from custom_env import make_sb3_point_env
+=======
+# from proto_goal.custom_env import make_sb3_point_env
+>>>>>>> a4c23544901b58a9f792bd085df116298dab205a
 import gym
 print(__name__)
 import numpy as np
@@ -101,9 +105,10 @@ def train(env,work_dir):
 
     print(model)
     eval_callback = EvalCallback(eval_env=env,n_eval_episodes=5,eval_freq=5000, log_dir=model_dir)
-    with ProgressBarManager(200001) as progress_callback: # this the garanties th,at the tqdm progress bar closes correctly
+    total_train_steps = 100001
+    with ProgressBarManager(total_train_steps) as progress_callback: # this the garanties th,at the tqdm progress bar closes correctly
         # model.learn(2000, callback=callback), 
-        model.learn(total_timesteps=200001, log_interval=1000, callback=[eval_callback,progress_callback])
+        model.learn(total_timesteps=total_train_steps, log_interval=1000, callback=[eval_callback,progress_callback])
     # model.save(os.path.join(work_dir, "model/td3"))
 
     print("model trained and saved")
@@ -111,13 +116,13 @@ def train(env,work_dir):
 
 
 def eval_and_save_video(env,work_dir):
-    model = TD3.load(os.path.join(work_dir, "model/best_model"), env)
+    model = TD3.load(os.path.join(work_dir, "model"), env)
 
     count = 0
     rewards=[]
     episode_reward = 0
     obs = env.reset()
-    v = VideoRecorder(video_dir="./video")
+    v = VideoRecorder(video_dir=os.path.join(work_dir, "video"))
     v.init(enabled=True)
     for i in range(200):
         action, _states = model.predict(obs)
@@ -135,21 +140,21 @@ def eval_and_save_video(env,work_dir):
 
     print("Average reward on evaluation" , np.mean(np.array(rewards)))
 
-    v.save(os.path.join(work_dir,"video/200.mp4"))
+    v.save("point_mass_200.mp4")
 
 
 if __name__ == '__main__':
     goal_selection_strategy = "future"
     online_sampling = True
-    max_episode_length = 50
-    env = make_sb3_env(env_name="fetch_reach", action_repeat=2, max_episode_steps=50, seed=10, fixed=False, reward_type="dense")
+    max_episode_length = 100
+    # env = make_sb3_env(env_name="fetch_reach", action_repeat=2, max_episode_steps=50, seed=10, fixed=False, reward_type="dense")
     # eval(env, model_path="td3_fetch")
     # eval(env=env, model_path="td3_fetch")
-    # env = make_sb3_point_env()
-
+    env = make_sb3_point_env(seed=0)
 
     work_dir="./experiments/fetch_reach2"
     directory = MAKETREEDIR()
     directory.makedir(work_dir)
-    train(env, work_dir=work_dir)
+    # train(env, work_dir=work_dir)
+    eval_and_save_video(env,work_dir)
     ## TODO check what model.get_env() stores
