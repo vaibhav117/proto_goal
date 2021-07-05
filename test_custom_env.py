@@ -5,7 +5,6 @@ print(__name__)
 import numpy as np
 import sys
 import os
-from stable_baselines3 import  SAC, DDPG, TD3
 from stable_baselines3.common.noise import NormalActionNoise
 # from stable_baselines3.her import   HerReplayBuffer
 from stable_baselines3.her import goal_selection_strategy
@@ -25,6 +24,10 @@ from MakeTreeDir import MAKETREEDIR
 from callbacks import SaveOnBestTrainingRewardCallback,ProgressBarManager, EvalCallback
 from stable_baselines3.common.monitor import Monitor
 from custom_env import make_sb3_point_env
+from stable_baselines3.common.callbacks import CheckpointCallback
+from datetime import datetime
+from pytz import timezone
+import wandb
 # pdb.set_trace()
 # env = gym.make('HalfCheetah-v2')
 
@@ -61,6 +64,10 @@ from custom_env import make_sb3_point_env
 
 
 def train(env,work_dir):    
+    wandb.init(project="point_env_goal", name="td3_model"+ts)
+    wandb.config.jobid=os.getenv('SLURM_JOB_ID')
+    wandb.config.work_dir = work_dir
+    
     model_dir = os.path.join(work_dir, "model")
     os.makedirs(model_dir, exist_ok=True)
     env= Monitor(env, os.path.join(model_dir, "monitor.csv"))
@@ -100,11 +107,15 @@ def train(env,work_dir):
                 )
 
     print(model)
-    eval_callback = EvalCallback(eval_env=env,n_eval_episodes=5,eval_freq=5000, log_dir=model_dir)
+    checkpoint_callback = CheckpointCallback(save_freq=10000, save_path=model_dir,
+                                         name_prefix='td3_model')
+    # eval_callback = EvalCallback(eval_env=env,n_eval_episodes=5,eval_freq=5000, log_dir=model_dir)
     total_train_steps = 100001
-    with ProgressBarManager(total_train_steps) as progress_callback: # this the garanties th,at the tqdm progress bar closes correctly
+    # with ProgressBarManager(total_train_steps) as progress_callback: # this the garanties th,at the tqdm progress bar closes correctly
         # model.learn(2000, callback=callback), 
-        model.learn(total_timesteps=total_train_steps, log_interval=1000, callback=[eval_callback,progress_callback])
+
+    save_on_best_training_reward_callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=model_dir, verbose=1)
+    model.learn(total_timesteps=total_train_steps, log_interval=1000, callback=[save_on_best_training_reward_callback])
     # model.save(os.path.join(work_dir, "model/td3"))
 
     print("model trained and saved")
@@ -112,7 +123,10 @@ def train(env,work_dir):
 
 
 def eval_and_save_video(env,work_dir):
-    model = TD3.load(os.path.join(work_dir, "model"), env)
+    # model_dir= os.path.join(work_dir, "model")
+    # chunks = os.listdir(model_dir)
+    # step = lambda x:int(x.split('.')[0].split('_')[-2])
+    model = TD3.load(os.path.join(work_dir, "model/td3_model_100000_steps"), env)
 
     count = 0
     rewards=[]
@@ -120,7 +134,7 @@ def eval_and_save_video(env,work_dir):
     obs = env.reset()
     v = VideoRecorder(video_dir=os.path.join(work_dir, "video"))
     v.init(enabled=True)
-    for i in range(200):
+    for i in range(300):
         action, _states = model.predict(obs)
         obs, reward, done, info = env.step(action)
         episode_reward += reward
@@ -136,22 +150,27 @@ def eval_and_save_video(env,work_dir):
 
     print("Average reward on evaluation" , np.mean(np.array(rewards)))
 
-    v.save("point_mass_200.mp4")
+    v.save("point_mass_300.mp4")
 
 
 if __name__ == '__main__':
+    global ts
+
+    now_asia = datetime.now(timezone('Asia/Kolkata'))
+    format = "%m-%d-%H:%M"
+    ts = now_asia.strftime(format)
     goal_selection_strategy = "future"
     online_sampling = True
     max_episode_length = 100
     # env = make_sb3_env(env_name="fetch_reach", action_repeat=2, max_episode_steps=50, seed=10, fixed=False, reward_type="dense")
     # eval(env, model_path="td3_fetch")
     # eval(env=env, model_path="td3_fetch")
-    env = make_sb3_point_env(seed=0)
+    env = make_sb3_point_env(seed=23)
 
 
-    work_dir="/scratch/sh6317/research/proto_goal/experiments/point_mass1"
+    work_dir=f"/scratch/sh6317/research/proto_goal/experiments/point_mass_+{ts}"
     directory = MAKETREEDIR()
     directory.makedir(work_dir)
-    # train(env, work_dir=work_dir)
-    eval_and_save_video(env,work_dir)
+    train(env, work_dir=work_dir)
+    # eval_and_save_video(env,work_dir)
     ## TODO check what model.get_env() stores

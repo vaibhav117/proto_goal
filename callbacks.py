@@ -8,7 +8,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.evaluation import evaluate_policy
-
+import wandb
 
 class ProgressBarCallback(BaseCallback):
     """
@@ -73,6 +73,7 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
           if len(x) > 0:
               # Mean training reward over the last 100 episodes
               mean_reward = np.mean(y[-100:])
+              wandb.log({"training_mean_reward": mean_reward}, step=self.num_timesteps)
               if self.verbose > 0:
                 print("Num timesteps: {}".format(self.num_timesteps))
                 print("Best mean reward: {:.2f} - Last mean reward per episode: {:.2f}".format(self.best_mean_reward, mean_reward))
@@ -149,7 +150,15 @@ class EvalCallback(BaseCallback):
 
 
 
+# cant use wandbcallback for training 
 
+class WandbCallback(BaseCallback):
+  def __init__(self,freq_update=1000):
+    super(WandbCallback, self).__init__()
+    self.freq_update= freq_update
 
+  def _init_callback(self):
+    pass
 
-        
+  def _on_step(self):
+    wandb.record()

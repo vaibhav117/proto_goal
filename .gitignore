@@ -138,3 +138,4 @@ log/
 output/
 td3_fetch.zip
 video/
+wandb/
