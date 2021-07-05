@@ -56,6 +56,7 @@ class CustomActor(Actor):
         # keep normalize_images = False when calling function
         action_dim = get_action_dim(self.action_space)
         actor_net = create_mlp(2*features_dim, action_dim, net_arch, activation_fn, squash_output=True)
+        # print(actor_net)
         self.mu = nn.Sequential(*actor_net)
         self.apply(utils.weight_init)
 
@@ -65,6 +66,7 @@ class CustomActor(Actor):
         features1 = self.features_extractor(obs, temp)
         features2 = self.features_extractor(obs, "desired_goal_image")
         features = th.cat([features1,features2], dim=1)
+        # print(features,"features actor------")
         return self.mu(features)
 
 

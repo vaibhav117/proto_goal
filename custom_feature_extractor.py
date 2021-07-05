@@ -24,11 +24,11 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         )
 
 
-        # self.conv = nn.Sequential(nn.Conv2d(obs_shape[0], 32, 3, stride=2),
-        #                           nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
-        #                           nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
-        #                           nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
-        #                           nn.ReLU(), nn.Flatten(),)
+        self.cnn = nn.Sequential(nn.Conv2d(obs_shape[0], 32, 3, stride=2),
+                                  nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
+                                  nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
+                                  nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
+                                  nn.ReLU(), nn.Flatten(),)
 
         with th.no_grad():
             n_flatten = self.conv(
@@ -41,6 +41,9 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
 
         # self.repr_dim = 32 * 35 * 35  
         self.apply(utils.weight_init)
+        print(self.linear)
+        print(self.conv)
+        print(self.cnn ,"not used")
 
     def forward(self, observations, key) -> th.Tensor:
         # encoded_tensor_list = []
