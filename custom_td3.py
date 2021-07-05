@@ -254,10 +254,10 @@ class TD3(OffPolicyAlgorithm):
                 polyak_update(self.critic.parameters(), self.critic_target.parameters(), self.tau)
                 polyak_update(self.actor.parameters(), self.actor_target.parameters(), self.tau)
 
-        logger.record("train/n_updates", self._n_updates, exclude="tensorboard")
-        if len(actor_losses) > 0:
-            logger.record("train/actor_loss", np.mean(actor_losses))
-        logger.record("train/critic_loss", np.mean(critic_losses))
+        # logger.record("train/n_updates", self._n_updates, exclude="tensorboard")
+        # if len(actor_losses) > 0:
+        #     logger.record("train/actor_loss", np.mean(actor_losses))
+        # logger.record("train/critic_loss", np.mean(critic_losses))
 
     def learn(
         self,

@@ -152,6 +152,6 @@ if __name__ == '__main__':
     work_dir="./experiments/fetch_reach2"
     directory = MAKETREEDIR()
     directory.makedir(work_dir)
-    # train(env, work_dir=work_dir)
-    eval_and_save_video(env,work_dir)
+    train(env, work_dir=work_dir)
+    # eval_and_save_video(env,work_dir)
     ## TODO check what model.get_env() stores
