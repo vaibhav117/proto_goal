@@ -362,8 +362,10 @@ class HerReplayBuffer(DictReplayBuffer):
             )
 
         # concatenate observation with (desired) goal
-        observations = self._normalize_obs(transitions, maybe_vec_env)
-
+        # observations = self._normalize_obs(transitions, maybe_vec_env)
+        observations = transitions
+        # print(observations[])
+        # print(observations == transitions)
         # HACK to make normalize obs and `add()` work with the next observation
         next_observations = {
             "observation": transitions["next_obs"],
@@ -374,8 +376,8 @@ class HerReplayBuffer(DictReplayBuffer):
             "desired_goal_image": transitions["desired_goal_image"]
 
         }
-        next_observations = self._normalize_obs(next_observations, maybe_vec_env)
-
+        # next_observations = self._normalize_obs(next_observations, maybe_vec_env)
+            
         if online_sampling:
             next_obs = {key: self.to_torch(next_observations[key][:, 0, :]) for key in next_observations.keys()}
 

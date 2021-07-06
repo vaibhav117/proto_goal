@@ -189,7 +189,7 @@ class TD3(OffPolicyAlgorithm):
             self.observation_space,
             self.action_space,
             self.lr_schedule,
-            **self.policy_kwargs,  # pytype:disable=not-instantiable
+        **self.policy_kwargs,  # pytype:disable=not-instantiable
         )
         self.policy = self.policy.to(self.device)
 
@@ -215,14 +215,16 @@ class TD3(OffPolicyAlgorithm):
             self._n_updates += 1
             # Sample replay buffer
             replay_data = self.replay_buffer.sample(batch_size, env=self._vec_normalize_env)
-
+            # print(replay_data.actions,__file__)
             with th.no_grad():
                 # Select action according to policy and add clipped noise
                 ## TODO is clipped noise neccessary ?? 
                 noise = replay_data.actions.clone().data.normal_(0, self.target_policy_noise)
                 noise = noise.clamp(-self.target_noise_clip, self.target_noise_clip)
-                next_actions = (self.actor_target(replay_data.next_observations) + noise).clamp(-1, 1)
-
+                next_actions = (self.actor_target(replay_data.next_observations) + noise)
+                next_actions = next_actions.clamp(-1, 1)
+                print(next_actions,__file__,"next_Action")
+                
                 # Compute the next Q-values: min over all critics targets
                 next_q_values = th.cat(self.critic_target(replay_data.next_observations, next_actions), dim=1)
                 next_q_values, _ = th.min(next_q_values, dim=1, keepdim=True)

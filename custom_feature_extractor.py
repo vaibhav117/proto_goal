@@ -43,7 +43,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         self.apply(utils.weight_init)
         print(self.linear)
         print(self.conv)
-        print(self.cnn ,"not used")
+        # print(self.cnn ,"not used")
 
     def forward(self, observations, key) -> th.Tensor:
         # encoded_tensor_list = []

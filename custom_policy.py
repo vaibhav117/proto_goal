@@ -3,6 +3,7 @@ import utils
 import gym
 import numpy as np
 import torch as th
+import wandb
 from torch import nn
 from stable_baselines3.common.torch_layers import (
     BaseFeaturesExtractor,
@@ -39,7 +40,13 @@ def achieved_goal_from_obs(obs) -> str:
     return temp
 
 # def create_mlp(2*features_dim, action_dim, net_arch, activation_fn, squash_output=True):
-    
+
+def mlp(sizes, activation, output_activation=nn.Identity):
+    layers = []
+    for j in range(len(sizes)-1):
+        act = activation if j < len(sizes)-2 else output_activation
+        layers += [nn.Linear(sizes[j], sizes[j+1]), act()]
+    return nn.Sequential(*layers)
 
 
 class CustomActor(Actor):
@@ -55,20 +62,24 @@ class CustomActor(Actor):
         # WARNING: it must end with a tanh activation to squash the output
         # keep normalize_images = False when calling function
         action_dim = get_action_dim(self.action_space)
-        actor_net = create_mlp(2*features_dim, action_dim, net_arch, activation_fn, squash_output=True)
-        # print(actor_net)
-        self.mu = nn.Sequential(*actor_net)
-        self.apply(utils.weight_init)
+        self.features_extractor= features_extractor
+        self.actor_net = mlp([2*features_dim, *net_arch, action_dim],activation=activation_fn, output_activation=nn.Tanh)
+        # actor_net = create_mlp(2*features_dim, action_dim, net_arch, activation_fn, squash_output=False)
+        print(self.actor_net)
+        # self.apply(utils.weight_init)
 
     def forward(self,obs): 
+        # import pdb;pdb.set_trace()
         temp =achieved_goal_from_obs(obs)
 
         features1 = self.features_extractor(obs, temp)
         features2 = self.features_extractor(obs, "desired_goal_image")
         features = th.cat([features1,features2], dim=1)
         # print(features,"features actor------")
-        return self.mu(features)
-
+        action = self.actor_net(features)
+        # print(action,f"---actor output {__file__}")
+        wandb.log({"action_actor[0]": action.detach().cpu().numpy()[0][0],"action_actor[1]":  action.detach().cpu().numpy()[0][1] })
+        return action
 
 
 class CustomContinuousCritic(BaseModel):
@@ -100,8 +111,9 @@ class CustomContinuousCritic(BaseModel):
         self.n_critics = n_critics
         self.q_networks = []
         for idx in range(n_critics):
-            q_net = create_mlp(2*features_dim + action_dim, 1, net_arch, activation_fn)
-            q_net = nn.Sequential(*q_net)
+            q_net = mlp([2*features_dim + action_dim, *net_arch, 1],activation=activation_fn)
+            # q_net = create_mlp(2*features_dim + action_dim, 1, net_arch, activation_fn)
+            # q_net = nn.Sequential(*q_net)
             self.add_module(f"qf{idx}", q_net)
             self.q_networks.append(q_net)
 
