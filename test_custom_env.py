@@ -103,7 +103,7 @@ def train(env,work_dir):
     print(model)
     eval_callback = EvalCallback(eval_env=env,n_eval_episodes=5,eval_freq=5000, log_dir=model_dir)
     total_train_steps = 100001
-    with ProgressBarManager(total_train_steps) as progress_callback: # this the garanties th,at the tqdm progress bar closes correctly
+    with ProgressBarManager(total_train_steps) as progress_callback: # this the garanties that the tqdm progress bar closes correctly
         # model.learn(2000, callback=callback), 
         model.learn(total_timesteps=total_train_steps, log_interval=1000, callback=[eval_callback,progress_callback])
     # model.save(os.path.join(work_dir, "model/td3"))
@@ -149,9 +149,9 @@ if __name__ == '__main__':
     # eval(env=env, model_path="td3_fetch")
     env = make_sb3_point_env(seed=0)
 
-    work_dir="./experiments/fetch_reach2"
+    work_dir="/home/vaibhav/Desktop/Projects/CILVR/proto_goal/experiments"
     directory = MAKETREEDIR()
     directory.makedir(work_dir)
-    train(env, work_dir=work_dir)
-    # eval_and_save_video(env,work_dir)
+    # train(env, work_dir=work_dir)
+    eval_and_save_video(env,work_dir)
     ## TODO check what model.get_env() stores
