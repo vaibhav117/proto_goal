@@ -112,6 +112,7 @@ def train(env,work_dir):
                 policy_kwargs=policy_kwargs,
                 seed = 0,
                 verbose=1,
+                tensorboard_log=log_path,
                 embedding_space_distance= False,
                 monitor_wrapper =True, 
                 batch_size = 256,
@@ -213,13 +214,13 @@ if __name__ == '__main__':
     ts = now_asia.strftime(format)
     goal_selection_strategy = "future"
     online_sampling = True
-    max_episode_length = 60
+    max_episode_length = 100
     # env = make_sb3_env(env_name="fetch_reach", action_repeat=2, max_episode_steps=50, seed=10, fixed=False, reward_type="dense")
     # eval(env, model_path="td3_fetch")
     # eval(env=env, model_path="td3_fetch")
     wandb.init(project="point_env_goal", name="td3_model"+ts)
 
-    env = make_sb3_point_env(seed=35)
+    env = make_sb3_point_env(seed=35, reward_type="sparse")
     global_dir = os.path.abspath(__file__ + "/../experiments" )
     index= (get_latest_run_id(global_dir, "point_env"))
     print(index)
@@ -234,7 +235,7 @@ if __name__ == '__main__':
 
     # work_dir  =f"/scratch/sh6317/research/proto_goal/experiments/point_mass"
 
-        eval_work_dir = os.path.join(global_dir,"point_env_"+str(index))
+        eval_work_dir = os.path.join(global_dir,"point_env_sparse"+str(index))
         eval_and_save_video(env,eval_work_dir)
 
 

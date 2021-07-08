@@ -1,5 +1,5 @@
 #!/bin/bash 
-#SBATCH --job-name=point_mass
+#SBATCH --job-name=point_env
 #SBATCH --open-mode=append
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1

@@ -89,7 +89,8 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
           if len(x) > 0:
               # Mean training reward over the last 100 episodes
               mean_reward = np.mean(y[-100:])
-              # wandb.log({"training_mean_reward": mean_reward}, step=self.num_timesteps)
+              
+              wandb.log({"training_mean_reward": mean_reward})
               if self.verbose > 0:
                 print("Num timesteps: {}".format(self.num_timesteps))
                 print("Best mean reward: {:.2f} - Last mean reward per episode: {:.2f}".format(self.best_mean_reward, mean_reward))

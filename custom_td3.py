@@ -224,7 +224,7 @@ class TD3(OffPolicyAlgorithm):
         self.critic = self.policy.critic
         self.critic_target = self.policy.critic_target
 
-    def train(self, gradient_steps: int, batch_size: int = 100, action_l2=1) -> None:
+    def train(self, gradient_steps: int, batch_size: int = 100, action_l2=0.5) -> None:
 
         # Update learning rate according to lr schedule
         self._update_learning_rate([self.actor.optimizer, self.critic.optimizer])
@@ -330,4 +330,4 @@ class TD3(OffPolicyAlgorithm):
 # lr, batch_size, her_ration (n_sampled_goal) , 
 # sparse, vs dense
 # wandb save video
-# tensorboard fix 
+# tensorboard fix s

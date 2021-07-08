@@ -17,27 +17,39 @@ class Reach(GoalEnv):
     SURVIVE_REWARD = 0
     VISUALIZE = False
 
-    def __init__(self,initial_qpos,  seed=None,model_path=None):
+    def __init__(self,initial_qpos,  seed=None,model_path=None, reward_type="dense"):
         self.target = self.ARENA_SPACE_HIGH # Init to far away from agent start.
         self.num_reached = 0
         if model_path is None:
             model_path = self.ASSET
 #         xml_path = os.path.join("./assets", self.ASSET)
-        
+        self.reward_type = reward_type
         self.init_site=None
         super(Reach, self).__init__(initial_qpos=initial_qpos, model_path=model_path)
 
     def get_obs(self):
         pass
 
+    # def compute_reward(self, achieved_goal, desired_goal, info):
+    #     dist_to_target = np.linalg.norm(achieved_goal - desired_goal)
+    #     reward = -1*self.REWARD_SCALE * dist_to_target
+    #     if dist_to_target < self.TARGET_SIZE:
+    #         reward += self.SPARSE_REWARD
+    #     reward += self.SURVIVE_REWARD
+    #     return reward
+    
+
     def compute_reward(self, achieved_goal, desired_goal, info):
         dist_to_target = np.linalg.norm(achieved_goal - desired_goal)
-        reward = -1*self.REWARD_SCALE * dist_to_target
-        if dist_to_target < self.TARGET_SIZE:
-            reward += self.SPARSE_REWARD
-        reward += self.SURVIVE_REWARD
-        return reward
-    
+        if self.reward_type == "sparse":
+            return -(dist_to_target > self.TARGET_SIZE).astype(np.float32)
+        else:
+            reward =  -1*self.REWARD_SCALE * dist_to_target
+            if dist_to_target < self.TARGET_SIZE:
+                reward = reward+ self.SPARSE_REWARD
+            reward += self.SURVIVE_REWARD
+            return reward
+
     def set_qvel(self,qvel):
         
         assert qvel.shape == (self.model.nv,)
@@ -71,7 +83,7 @@ class Reach(GoalEnv):
         return obs, reward, done, {'success' : done}
         
 class ReachNav(Reach):
-    def __init__(self, initial_qpos,seed):
+    def __init__(self, initial_qpos,seed,reward_type):
         self.SKILL_DIM = 2
         self.TARGET_DIM = 2
         self.TASK_DIM = 4 # agent position, target position
@@ -81,18 +93,18 @@ class ReachNav(Reach):
         self.VISUALIZE = True
         self.target_range=5
         
-        super(ReachNav, self).__init__(initial_qpos,seed)
+        super(ReachNav, self).__init__(initial_qpos,seed, reward_type=reward_type)
 
 class Reach_PointMass(ReachNav):
     
     
-    def __init__(self, initial_qpos,seed=10 ,fixed=False):
+    def __init__(self, initial_qpos,seed=10 ,fixed=False, reward_type="dense"):
         self.ASSET = 'point_mass.xml'
         self.AGENT_DOF = 2
         self.FRAME_SKIP = 3
         self.fixed=fixed
         
-        super(Reach_PointMass, self).__init__(initial_qpos,seed)
+        super(Reach_PointMass, self).__init__(initial_qpos,seed, reward_type)
         self.init_site = self.sim.model.site_pos[0].copy()
         
         
@@ -193,13 +205,13 @@ class Reach_PointMass(ReachNav):
         self.target= self.np_random.uniform(low=-self.target_range, high=self.target_range, size=2)
 
 
-def make_sb3_point_env(seed=0):
+def make_sb3_point_env(seed=0, reward_type="dense"):
 
     initial_qpos = {
             'ballx': 0,
             'bally': 0
             
         }
-    point_env = Reach_PointMass(initial_qpos,seed=seed)
+    point_env = Reach_PointMass(initial_qpos,seed=seed, reward_type=reward_type)
     point_env = TimeLimit(point_env,max_episode_steps=100)
     return point_env
