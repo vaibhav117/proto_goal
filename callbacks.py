@@ -53,17 +53,33 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
       It must contains the file created by the ``Monitor`` wrapper.
     :param verbose: (int)
     """
-    def __init__(self, check_freq, log_dir, verbose=1):
+    def __init__(self, check_freq, log_dir, verbose=1, gradient_save_freq=10, wandb_watch=False):
         super(SaveOnBestTrainingRewardCallback, self).__init__(verbose)
         self.check_freq = check_freq
         self.log_dir = log_dir
         self.save_path = os.path.join(log_dir, 'best_model')
         self.best_mean_reward = -np.inf
-
+        self.gradient_save_freq = gradient_save_freq
+        self.wandb_watch = wandb_watch
     def _init_callback(self) -> None:
         # Create folder if needed
         if self.save_path is not None:
             os.makedirs(self.save_path, exist_ok=True)
+        if self.wandb_watch:
+            
+          d = {}
+          for key in self.model.__dict__:
+              if key in wandb.config:
+                  continue
+              if type(self.model.__dict__[key]) in [float, int, str]:
+                  d[key] = self.model.__dict__[key]
+              else:
+                  d[key] = str(self.model.__dict__[key])
+          if self.gradient_save_freq > 0:
+              wandb.watch(self.model.policy, log_freq=self.gradient_save_freq, log="all")
+          wandb.config.update(d)
+
+            
 
     def _on_step(self) -> bool:
         if self.n_calls % self.check_freq == 0:
@@ -170,20 +186,13 @@ class WandbCallback(BaseCallback):
   def __init__(
         self,
         verbose: int = 0,
-        model_save_path: str = None,
-        model_save_freq: int = 1000,
         gradient_save_freq: int = 0,
     ):
 
     super(WandbCallback, self).__init__(verbose)
     assert (wandb.run is not None), "no wandb run detected; use `wandb.init()` to initialize a run"
-    self.model_save_freq = model_save_freq
-    self.model_save_path = model_save_path
     self.gradient_save_freq = gradient_save_freq
         # Create folder if needed
-    if self.model_save_path is not None:
-      os.makedirs(self.model_save_path, exist_ok=True)
-      self.path = os.path.join(self.model_save_path, "model.zip")
 
   def _init_callback(self) -> None:
 
@@ -200,11 +209,3 @@ class WandbCallback(BaseCallback):
         wandb.watch(self.model.policy, log_freq=self.gradient_save_freq, log="all")
     wandb.config.update(d)
 
-  def _on_step(self) -> bool:
-    if self.model_save_path is not None:
-      if self.n_calls % self.model_save_freq == 0:
-          self.model.save(self.path)
-          wandb.save(self.path)
-          if self.verbose > 1:
-              print("Saving model checkpoint to", self.path)
-    return True

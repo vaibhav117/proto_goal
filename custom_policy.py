@@ -1,3 +1,4 @@
+
 import utils
 
 import gym
@@ -63,18 +64,26 @@ class CustomActor(Actor):
         # keep normalize_images = False when calling function
         action_dim = get_action_dim(self.action_space)
         self.features_extractor= features_extractor
-        self.actor_net = mlp([2*features_dim, *net_arch, action_dim],activation=activation_fn)
+        self.actor_net = mlp([2*features_dim, *net_arch, action_dim],activation=activation_fn, output_activation=nn.Tanh)
         # actor_net = create_mlp(2*features_dim, action_dim, net_arch, activation_fn, squash_output=False)
         print(self.actor_net)
-        # self.apply(utils.weight_init)
+        self.apply(utils.weight_init)
 
-    def forward(self,obs): 
+    def forward(self,obs,no_grad_update=False): 
         # import pdb;pdb.set_trace()
         temp =achieved_goal_from_obs(obs)
+        if no_grad_update:
+            with th.no_grad():
+                features1 = self.features_extractor(obs, temp)
+                features2 = self.features_extractor(obs, "desired_goal_image")
+                features = th.cat([features1,features2], dim=1)
 
-        features1 = self.features_extractor(obs, temp)
-        features2 = self.features_extractor(obs, "desired_goal_image")
-        features = th.cat([features1,features2], dim=1)
+        else:
+            features1 = self.features_extractor(obs, temp)
+            features2 = self.features_extractor(obs, "desired_goal_image")
+            features = th.cat([features1,features2], dim=1)
+
+        # TODO reformat above lines
         # print(features,"features actor------")
         action = self.actor_net(features)
         # print(action,f"---actor output {__file__}")
@@ -112,6 +121,7 @@ class CustomContinuousCritic(BaseModel):
         self.q_networks = []
         for idx in range(n_critics):
             q_net = mlp([2*features_dim + action_dim, *net_arch, 1],activation=activation_fn)
+            self.apply(utils.weight_init)
             # q_net = create_mlp(2*features_dim + action_dim, 1, net_arch, activation_fn)
             # q_net = nn.Sequential(*q_net)
             self.add_module(f"qf{idx}", q_net)

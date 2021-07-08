@@ -3,12 +3,9 @@ import numpy as np
 from base import GoalEnv
 from gym.wrappers import TimeLimit
 import gym
-from gym.envs.robotics import utilsimport os
-import numpy as np
-import gym
+from gym.envs.robotics import utils
 import tempfile
 import xml.etree.ElementTree as ET
-from base import GoalEnv
 import mujoco_py
 class Reach(GoalEnv):
     TARGET_SIZE = None
@@ -153,8 +150,8 @@ class Reach_PointMass(ReachNav):
             
             'achieved_goal' : self.get_body_com("torso")[:2],
             'desired_goal' : self.target,
-            'image_observation': self.get_image(),
-            'desire_goal_image': self.get_goal_image()
+            'image_observation': self.get_image().transpose(2,0,1),
+            'desired_goal_image': self.get_goal_image().transpose(2,0,1)
             
             
         }

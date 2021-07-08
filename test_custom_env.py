@@ -31,6 +31,7 @@ from pytz import timezone
 import wandb
 from typing import Dict, Iterable, Optional, Union
 import glob
+from stable_baselines3.common.logger import configure
 # pdb.set_trace()
 # env = gym.make('HalfCheetah-v2')
 
@@ -67,7 +68,7 @@ import glob
 
 
 def train(env,work_dir):    
-    wandb.init(project="point_env_goal", name="td3_model"+ts)
+    wandb.init(project="point_env_goal", name="td3_model"+ts, sync_tensorboard=True)
     wandb.config.jobid=os.getenv('SLURM_JOB_ID')
     wandb.config.work_dir = work_dir
     
@@ -90,11 +91,15 @@ def train(env,work_dir):
     }
 
     n_actions = env.action_space.shape[-1]
-    # action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+    action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
     # feature_extractor = feature_extractor_class(env.observation_space, feature_extractor_kwargs['features_dim'])
     # actor = CustomActor(env.observation_space, env.action_space,policy_kwargs['net_arch'], features_extractor=feature_extractor, 
     #                     features_dim=feature_extractor_kwargs['features_dim'],activation_fn=nn.ReLU())
-   
+    
+    log_path = os.path.join(work_dir,"sb3_log")
+    new_logger = configure(log_path, ["stdout", "csv", "tensorboard"])
+    
+
     model = TD3(policy="CustomTD3Policy", env=env,learning_rate=2e-3,buffer_size=100000,
                 replay_buffer_class=HerReplayBuffer,
         # Parameters for HER
@@ -107,12 +112,13 @@ def train(env,work_dir):
                 policy_kwargs=policy_kwargs,
                 seed = 0,
                 verbose=1,
-                tensorboard_log=os.path.join(work_dir, "tensorboard_log"),
                 embedding_space_distance= False,
                 monitor_wrapper =True, 
-                batch_size = 32,
-                action_noise = None
+                batch_size = 256,
+                action_noise = action_noise
                 )
+
+    model.set_logger(new_logger)
     flag = 0
     if flag == 1:
         v = VideoRecorder(video_dir=os.path.join(work_dir, "video"))
@@ -136,7 +142,7 @@ def train(env,work_dir):
         # with ProgressBarManager(total_train_steps) as progress_callback: # this the garanties th,at the tqdm progress bar closes correctly
         #     model.learn(2000, callback=callback), 
 
-        save_on_best_training_reward_callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=model_dir, verbose=1)
+        save_on_best_training_reward_callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=model_dir, verbose=1, gradient_save_freq=100, wandb_watch=True)
         model.learn(total_timesteps=total_train_steps, log_interval=1000, callback=[save_on_best_training_reward_callback])
     # model.save(os.path.join(work_dir, "model/td3"))
 

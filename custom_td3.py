@@ -139,6 +139,27 @@ class TD3(OffPolicyAlgorithm):
             return F.CosineSimilarity(features_o,features_g,dim=1)
 
         
+    def _build(self, lr_schedule):
+         # Create actor and target
+        # the features extractor should not be shared
+        self.actor = self.make_actor(features_extractor=None)
+        self.actor_target = self.make_actor(features_extractor=self.actor.features_extractor)
+        # Initialize the target to have the same weights as the actor
+        self.actor_target.load_state_dict(self.actor.state_dict())
+
+        self.critic = self.make_critic(features_extractor=self.actor.features_extractor)
+        self.critic_target = self.make_critic(features_extractor=self.actor_target.features_extractor)
+        self.actor.optimizer = self.optimizer_class(self.actor.parameters(), lr=lr_schedule(1), **self.optimizer_kwargs)
+
+        # if self.share_features_extractor:
+            # Critic target should not share the features extactor with critic
+            # but it can share it with the actor target as actor and critic are sharing
+            # the same features_extractor too
+            # NOTE: as a result the effective poliak (soft-copy) coefficient for the features extractor
+            # will be 2 * tau instead of tau (updated one time with the actor, a second time with the critic)
+        
+        self.critic_target.load_state_dict(self.critic.state_dict())
+        self.critic.optimizer = self.optimizer_class(self.critic.parameters(), lr=lr_schedule(1), **self.optimizer_kwargs)
 
 
     def _setup_model(self) -> None:
@@ -203,7 +224,7 @@ class TD3(OffPolicyAlgorithm):
         self.critic = self.policy.critic
         self.critic_target = self.policy.critic_target
 
-    def train(self, gradient_steps: int, batch_size: int = 100) -> None:
+    def train(self, gradient_steps: int, batch_size: int = 100, action_l2=1) -> None:
 
         # Update learning rate according to lr schedule
         self._update_learning_rate([self.actor.optimizer, self.critic.optimizer])
@@ -223,7 +244,7 @@ class TD3(OffPolicyAlgorithm):
                 noise = noise.clamp(-self.target_noise_clip, self.target_noise_clip)
                 next_actions = (self.actor_target(replay_data.next_observations) + noise)
                 next_actions = next_actions.clamp(-1, 1)
-                # print(next_actions,__file__,"next_Action")
+                # print(next_actions,__file__,"next_Action clamped ")
                 
                 # Compute the next Q-values: min over all critics targets
                 next_q_values = th.cat(self.critic_target(replay_data.next_observations, next_actions), dim=1)
@@ -245,9 +266,12 @@ class TD3(OffPolicyAlgorithm):
             # Delayed policy updates
             if self._n_updates % self.policy_delay == 0:
                 # Compute actor loss
-                actor_loss = -self.critic.q1_forward(replay_data.observations, self.actor(replay_data.observations)).mean()
+                # with torch.no_grad()
+                actions_real = self.actor(replay_data.observations, no_grad_update=True)
+                actor_loss = -self.critic.q1_forward(replay_data.observations,actions_real ).mean()
+                actor_loss += action_l2 * (actions_real / 1.).pow(2).mean()
+                
                 actor_losses.append(actor_loss.item())
-
                 # Optimize the actor
                 self.actor.optimizer.zero_grad()
                 actor_loss.backward()
@@ -255,10 +279,14 @@ class TD3(OffPolicyAlgorithm):
 
                 polyak_update(self.critic.parameters(), self.critic_target.parameters(), self.tau)
                 polyak_update(self.actor.parameters(), self.actor_target.parameters(), self.tau)
+                # polyak_update(self.feature_extractor(), self.feature_extractor.parameters()
+                # critic(f(obs)) tar(f(obs))
+                # Q = reward + alpha(wtrar)
 
         self.logger.record("train/n_updates", self._n_updates, exclude="tensorboard")
         if len(actor_losses) > 0:
             self.logger.record("train/actor_loss", np.mean(actor_losses))
+            
         self.logger.record("train/critic_loss", np.mean(critic_losses))
         wandb.log({"train/n_updates": self._n_updates, "train/actor_loss":np.mean(actor_losses),"train/critic_loss":np.mean(critic_losses)})
     def learn(
@@ -292,3 +320,14 @@ class TD3(OffPolicyAlgorithm):
     def _get_torch_save_params(self) -> Tuple[List[str], List[str]]:
         state_dicts = ["policy", "actor.optimizer", "critic.optimizer"]
         return state_dicts, []
+
+
+
+
+
+## hypermeter tuning 
+# net arch- > feature, actor, critic 
+# lr, batch_size, her_ration (n_sampled_goal) , 
+# sparse, vs dense
+# wandb save video
+# tensorboard fix 
