@@ -95,7 +95,7 @@ def train(env,work_dir):
     # actor = CustomActor(env.observation_space, env.action_space,policy_kwargs['net_arch'], features_extractor=feature_extractor, 
     #                     features_dim=feature_extractor_kwargs['features_dim'],activation_fn=nn.ReLU())
    
-    model = TD3(policy="CustomTD3Policy", env=env,learning_rate=1e-3,buffer_size=100000,
+    model = TD3(policy="CustomTD3Policy", env=env,learning_rate=2e-3,buffer_size=100000,
                 replay_buffer_class=HerReplayBuffer,
         # Parameters for HER
                 replay_buffer_kwargs=dict(
@@ -110,6 +110,7 @@ def train(env,work_dir):
                 tensorboard_log=os.path.join(work_dir, "tensorboard_log"),
                 embedding_space_distance= False,
                 monitor_wrapper =True, 
+                batch_size = 32,
                 action_noise = None
                 )
     flag = 0

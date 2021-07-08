@@ -14,7 +14,7 @@ from stable_baselines3.common.utils import polyak_update
 from stable_baselines3.td3.policies import TD3Policy
 from stable_baselines3.common.buffers import DictReplayBuffer, ReplayBuffer
 from custom_her_replay_buffer import HerReplayBuffer
-
+import wandb
 
 class TD3(OffPolicyAlgorithm):
     """
@@ -223,7 +223,7 @@ class TD3(OffPolicyAlgorithm):
                 noise = noise.clamp(-self.target_noise_clip, self.target_noise_clip)
                 next_actions = (self.actor_target(replay_data.next_observations) + noise)
                 next_actions = next_actions.clamp(-1, 1)
-                print(next_actions,__file__,"next_Action")
+                # print(next_actions,__file__,"next_Action")
                 
                 # Compute the next Q-values: min over all critics targets
                 next_q_values = th.cat(self.critic_target(replay_data.next_observations, next_actions), dim=1)
@@ -260,7 +260,7 @@ class TD3(OffPolicyAlgorithm):
         if len(actor_losses) > 0:
             self.logger.record("train/actor_loss", np.mean(actor_losses))
         self.logger.record("train/critic_loss", np.mean(critic_losses))
-
+        wandb.log({"train/n_updates": self._n_updates, "train/actor_loss":np.mean(actor_losses),"train/critic_loss":np.mean(critic_losses)})
     def learn(
         self,
         total_timesteps: int,

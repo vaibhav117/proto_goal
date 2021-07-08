@@ -153,12 +153,58 @@ class EvalCallback(BaseCallback):
 # cant use wandbcallback for training 
 
 class WandbCallback(BaseCallback):
-  def __init__(self,freq_update=1000):
-    super(WandbCallback, self).__init__()
-    self.freq_update= freq_update
 
-  def _init_callback(self):
-    pass
+  """ Log SB3 experiments to Weights and Biases
+      - Added model tracking and uploading
 
-  def _on_step(self):
-    wandb.record()
+    - Added complete hyperparameters recording
+      - Added gradient logging
+      - Note that `wandb.init(...)` must be called before the WandbCallback can be used
+  Args:
+      verbose: The verbosity of sb3 output
+      model_save_path: Path to the folder where the model will be saved, The default value is `None` so the model is not logged
+      model_save_freq: Frequency to save the model
+      gradient_save_freq: Frequency to log gradient. The default value is 0 so the gradients are not logged
+  """
+
+  def __init__(
+        self,
+        verbose: int = 0,
+        model_save_path: str = None,
+        model_save_freq: int = 1000,
+        gradient_save_freq: int = 0,
+    ):
+
+    super(WandbCallback, self).__init__(verbose)
+    assert (wandb.run is not None), "no wandb run detected; use `wandb.init()` to initialize a run"
+    self.model_save_freq = model_save_freq
+    self.model_save_path = model_save_path
+    self.gradient_save_freq = gradient_save_freq
+        # Create folder if needed
+    if self.model_save_path is not None:
+      os.makedirs(self.model_save_path, exist_ok=True)
+      self.path = os.path.join(self.model_save_path, "model.zip")
+
+  def _init_callback(self) -> None:
+
+
+    d = {}
+    for key in self.model.__dict__:
+        if key in wandb.config:
+            continue
+        if type(self.model.__dict__[key]) in [float, int, str]:
+            d[key] = self.model.__dict__[key]
+        else:
+            d[key] = str(self.model.__dict__[key])
+    if self.gradient_save_freq > 0:
+        wandb.watch(self.model.policy, log_freq=self.gradient_save_freq, log="all")
+    wandb.config.update(d)
+
+  def _on_step(self) -> bool:
+    if self.model_save_path is not None:
+      if self.n_calls % self.model_save_freq == 0:
+          self.model.save(self.path)
+          wandb.save(self.path)
+          if self.verbose > 1:
+              print("Saving model checkpoint to", self.path)
+    return True

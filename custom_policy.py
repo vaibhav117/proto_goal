@@ -63,7 +63,7 @@ class CustomActor(Actor):
         # keep normalize_images = False when calling function
         action_dim = get_action_dim(self.action_space)
         self.features_extractor= features_extractor
-        self.actor_net = mlp([2*features_dim, *net_arch, action_dim],activation=activation_fn, output_activation=nn.Tanh)
+        self.actor_net = mlp([2*features_dim, *net_arch, action_dim],activation=activation_fn)
         # actor_net = create_mlp(2*features_dim, action_dim, net_arch, activation_fn, squash_output=False)
         print(self.actor_net)
         # self.apply(utils.weight_init)
