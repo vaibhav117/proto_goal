@@ -3,7 +3,13 @@ import numpy as np
 from base import GoalEnv
 from gym.wrappers import TimeLimit
 import gym
-from gym.envs.robotics import utils
+from gym.envs.robotics import utilsimport os
+import numpy as np
+import gym
+import tempfile
+import xml.etree.ElementTree as ET
+from base import GoalEnv
+import mujoco_py
 class Reach(GoalEnv):
     TARGET_SIZE = None
     ARENA_SPACE_LOW = None
@@ -35,7 +41,27 @@ class Reach(GoalEnv):
         reward += self.SURVIVE_REWARD
         return reward
     
-
+    def set_qvel(self,qvel):
+        
+        assert qvel.shape == (self.model.nv,)
+        old_state = self.sim.get_state()
+        new_state = mujoco_py.MjSimState(old_state.time, old_state.qpos, qvel,
+                                         old_state.act, old_state.udd_state)
+        
+        
+        self.sim.set_state(new_state)
+        self.sim.forward()
+        
+        
+        
+    def do_simulation(self, ctrl, n_frames):
+        self.sim.data.ctrl[:] = np.array([0,0])
+#         qpos = self.sim.data.qpos
+#         print(self.sim.get_state(),"just after qvel set_state")
+        for _ in range(n_frames):
+            self.set_qvel(ctrl)
+            
+            self.sim.step()
     def step(self, action):
         self.do_simulation(action, self.frame_skip)
         obs = self.get_obs()
@@ -96,7 +122,7 @@ class Reach_PointMass(ReachNav):
     
 
     
-    def get_goal_image(self, width=84,height=84):
+    def get_goal_image(self):
         desired_goal= self.target
         # grip_pos = self.sim.data.get_site_xpos('robot0:grip') # current gripper state
         # move point_mass to target , take image and move back
@@ -112,7 +138,7 @@ class Reach_PointMass(ReachNav):
         # self._render_callback() = None
         
         
-        goal_image =  self.get_image(width=width, height=height) 
+        goal_image =  self.get_image() 
         
         self.set_state(qpos, qvel)
         self.sim.forward()
@@ -127,8 +153,8 @@ class Reach_PointMass(ReachNav):
             
             'achieved_goal' : self.get_body_com("torso")[:2],
             'desired_goal' : self.target,
-            'image_observation': self.get_image(width=84,height=84).transpose(2,0,1),
-            'desired_goal_image': self.get_goal_image(width=84,height=84).transpose(2,0,1)
+            'image_observation': self.get_image(),
+            'desire_goal_image': self.get_goal_image()
             
             
         }
@@ -149,7 +175,7 @@ class Reach_PointMass(ReachNav):
        
         
         qpos = self.init_qpos + self.np_random.uniform(low=-self.TARGET_SIZE, high=self.TARGET_SIZE, size=self.model.nq)
-        qvel = self.init_qvel + self.np_random.uniform(low=-0.2, high=0.4, size=self.model.nv)
+        qvel = self.init_qvel + self.np_random.uniform(low=-0.2, high=0.2, size=self.model.nv)
         self.set_state(qpos, qvel)
         
         
@@ -168,8 +194,6 @@ class Reach_PointMass(ReachNav):
         self.sim.forward()
 #         self.initial_pos = self.init_qpos + self.np_random.uniform(low=-0.2, high=0.2, size=self.AGENT_DOF)
         self.target= self.np_random.uniform(low=-self.target_range, high=self.target_range, size=2)
-
-
 
 
 def make_sb3_point_env(seed=0):
