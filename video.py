@@ -26,11 +26,13 @@ class VideoRecorder(object):
     def record(self, env):
         if self.enabled:
             frame = env.render("rgb_array", width=self.width, height=self.height)
+            assert frame is not None, "empty frame"
             self.frames.append(frame)
 
     def save(self, file_name):
         if self.enabled:
             path = os.path.join(self.save_dir, file_name)
+            print(path)
             imageio.mimsave(path, self.frames, fps=self.fps)
 
 

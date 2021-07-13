@@ -69,25 +69,24 @@ class CustomActor(Actor):
         print(self.actor_net)
         self.apply(utils.weight_init)
 
-    def forward(self,obs,no_grad_update=False): 
+    def forward(self,obs): 
         # import pdb;pdb.set_trace()
         temp =achieved_goal_from_obs(obs)
-        if no_grad_update:
-            with th.no_grad():
-                features1 = self.features_extractor(obs, temp)
-                features2 = self.features_extractor(obs, "desired_goal_image")
-                features = th.cat([features1,features2], dim=1)
+        # with th.set_grad_enabled(not self.share_features_extractor):
+        features1 = self.features_extractor(obs, temp)
+        features2 = self.features_extractor(obs, "desired_goal_image")
+        features = th.cat([features1,features2], dim=1)
 
-        else:
-            features1 = self.features_extractor(obs, temp)
-            features2 = self.features_extractor(obs, "desired_goal_image")
-            features = th.cat([features1,features2], dim=1)
+        # else:
+        #     features1 = self.features_extractor(obs, temp)
+        #     features2 = self.features_extractor(obs, "desired_goal_image")
+        #     features = th.cat([features1,features2], dim=1)
 
         # TODO reformat above lines
         # print(features,"features actor------")
         action = self.actor_net(features)
         # print(action,f"---actor output {__file__}")
-        wandb.log({"action_actor[0]": action.detach().cpu().numpy()[0][0],"action_actor[1]":  action.detach().cpu().numpy()[0][1] })
+        wandb.log({"action_actor[0]": action[0][0].item(),"action_actor[1]":  action[0][1].item() })
         return action
 
 
@@ -132,11 +131,13 @@ class CustomContinuousCritic(BaseModel):
     def forward(self, obs: th.Tensor, actions: th.Tensor) -> Tuple[th.Tensor, ...]:
         # Learn the features extractor using the policy loss only
         # when the features_extractor is shared with the actor
-        with th.set_grad_enabled(not self.share_features_extractor):
-            temp=achieved_goal_from_obs(obs)
-            features_obs = self.features_extractor(obs,temp)
-            features_goal = self.features_extractor(obs,"desired_goal_image")
-            features = th.cat([features_obs, features_goal], dim=1)
+        # if share_features_extractor is True: feature_extractor is not updated in critic ,
+        #  then it should be updated using actor 
+        # with th.set_grad_enabled(not self.share_features_extractor):
+        temp=achieved_goal_from_obs(obs)
+        features_obs = self.features_extractor(obs,temp)
+        features_goal = self.features_extractor(obs,"desired_goal_image")
+        features = th.cat([features_obs, features_goal], dim=1)
             
         qvalue_input = th.cat([features, actions], dim=1)
         return tuple(q_net(qvalue_input) for q_net in self.q_networks)
@@ -168,6 +169,26 @@ class CustomTD3Policy(TD3Policy):
 
 
     
+         
+    # def _build(self, lr_schedule):
+    #      # Create actor and target
+    #     # the features extractor should not be shared
+    #     self.actor = self.make_actor(features_extractor=None)
+    #     # self.actor_target = self.make_actor(features_extractor=self.actor.features_extractor)
+    #     # Initialize the target to have the same weights as the actor
+    #     # self.actor_target.load_state_dict(self.actor.state_dict())
 
+    #     self.critic = self.make_critic(features_extractor=self.actor.features_extractor)
+    #     self.critic_target = self.make_critic(features_extractor=self.actor_target.features_extractor)
+    #     # self.actor.optimizer = self.optimizer_class(self.actor.parameters(), lr=lr_schedule(1), **self.optimizer_kwargs)
 
+    #     # if self.share_features_extractor:
+    #         # Critic target should not share the features extactor with critic
+    #         # but it can share it with the actor target as actor and critic are sharing
+    #         # the same features_extractor too
+    #         # NOTE: as a result the effective poliak (soft-copy) coefficient for the features extractor
+    #         # will be 2 * tau instead of tau (updated one time with the actor, a second time with the critic)
+        
+    #     self.critic_target.load_state_dict(self.critic.state_dict())
+    #     self.critic.optimizer = self.optimizer_class(self.critic.parameters(), lr=lr_schedule(1), **self.optimizer_kwargs)
 register_policy("CustomTD3Policy", CustomTD3Policy)

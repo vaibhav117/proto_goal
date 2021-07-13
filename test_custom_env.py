@@ -77,7 +77,7 @@ def train(env,work_dir):
     env= Monitor(env, os.path.join(model_dir, "monitor.csv"))
 
     feature_extractor_class = CustomCombinedExtractor
-    feature_extractor_kwargs = dict(features_dim=50)
+    feature_extractor_kwargs = dict(features_dim=50 )
 
     # custom_td3_policy= CustomTD3Policy(env.observation_space, env.action_space,
                                     #    )
@@ -86,7 +86,8 @@ def train(env,work_dir):
         "features_extractor_class" : feature_extractor_class,
         "features_extractor_kwargs" : feature_extractor_kwargs,
         "normalize_images": False,
-        "net_arch":[256,100]
+        "net_arch":[100,100],
+        "share_features_extractor" : True
 
     }
 
@@ -100,7 +101,7 @@ def train(env,work_dir):
     new_logger = configure(log_path, ["stdout", "csv", "tensorboard"])
     
 
-    model = TD3(policy="CustomTD3Policy", env=env,learning_rate=2e-3,buffer_size=100000,
+    model = TD3(policy="CustomTD3Policy", env=env,learning_rate=1e-3,buffer_size=100000,
                 replay_buffer_class=HerReplayBuffer,
         # Parameters for HER
                 replay_buffer_kwargs=dict(
@@ -115,7 +116,7 @@ def train(env,work_dir):
                 tensorboard_log=log_path,
                 embedding_space_distance= False,
                 monitor_wrapper =True, 
-                batch_size = 256,
+                batch_size = 100,
                 action_noise = action_noise
                 )
 
@@ -135,11 +136,12 @@ def train(env,work_dir):
                 obs = env.reset()
         v.save(f"point_mass_{index}_300_.mp4")
     # print(model)
-    # checkpoint_callback = CheckpointCallback(save_freq=10000, save_path=model_dir,
-    #                                      name_prefix='td3_model')
+   
     # eval_callback = EvalCallback(eval_env=env,n_eval_episodes=5,eval_freq=5000, log_dir=model_dir)
     else:
-        total_train_steps = 10000
+        checkpoint_callback = CheckpointCallback(save_freq=10000, save_path=model_dir,
+                                         name_prefix='td3_model')
+        total_train_steps = 300001
         # with ProgressBarManager(total_train_steps) as progress_callback: # this the garanties th,at the tqdm progress bar closes correctly
         #     model.learn(2000, callback=callback), 
 
@@ -155,22 +157,28 @@ def eval_and_save_video(env,work_dir):
     # model_dir= os.path.join(work_dir, "model")
     # chunks = os.listdir(model_dir)
     # step = lambda x:int(x.split('.')[0].split('_')[-2])
+    # import pdb; pdb.set_trace()
     model_path = os.path.join(work_dir, "model/best_model")
     if os.path.isdir(model_path):
+        print("removing dir")
         os.rmdir(model_path)
 
         
 
     model = TD3.load(model_path, env)
+    assert model is not None,"model is empty"
     count = 0
     rewards=[]
     episode_reward = 0
     obs = env.reset()
-    v = VideoRecorder(video_dir=os.path.join(work_dir, "video"))
+    video_dir = os.path.join(work_dir, "video")
+    v = VideoRecorder(video_dir=video_dir, height=512, width=512)
     v.init(enabled=True)
-    for i in range(50):
+    total_steps=300
+    for i in range(total_steps):
         action, _states = model.predict(obs)
-        print(action)
+        # action= env.action_space.sample()
+        # print(action)
         obs, reward, done, info = env.step(action)
         episode_reward += reward
         # env.render(mode="human")
@@ -184,9 +192,9 @@ def eval_and_save_video(env,work_dir):
             obs = env.reset()
 
     print("Average reward on evaluation" , np.mean(np.array(rewards)))
-    video_file = f"point_mass_{index}_300_.mp4"
+    video_file = f"point_mass_{index}_{total_steps}_.mp4"
     v.save(video_file)
-
+    wandb.save(video_dir+"/*")
 
 
 def get_latest_run_id(log_path: Optional[str] = None, log_name: str = "") -> int:
@@ -218,15 +226,16 @@ if __name__ == '__main__':
     # env = make_sb3_env(env_name="fetch_reach", action_repeat=2, max_episode_steps=50, seed=10, fixed=False, reward_type="dense")
     # eval(env, model_path="td3_fetch")
     # eval(env=env, model_path="td3_fetch")
-    wandb.init(project="point_env_goal", name="td3_model"+ts)
 
-    env = make_sb3_point_env(seed=35, reward_type="sparse")
+    env = make_sb3_point_env(seed=100, reward_type="dense")
     global_dir = os.path.abspath(__file__ + "/../experiments" )
     index= (get_latest_run_id(global_dir, "point_env"))
     print(index)
     training_flag =1
-    if training_flag:
-        work_dir = os.path.join(global_dir,"point_env_"+str(index+1))
+    if training_flag == 1:
+        wandb.init(project="point_env_goal", name=f"no_actor_target_1_feature_extractor{index}_td3_model_"+ts)
+
+        work_dir = os.path.join(global_dir,"point_env_"+str(index))
         print(work_dir)
         directory = MAKETREEDIR()
         directory.makedir(work_dir)
@@ -234,8 +243,11 @@ if __name__ == '__main__':
     else:
 
     # work_dir  =f"/scratch/sh6317/research/proto_goal/experiments/point_mass"
+        # index= 57
+        # print(index)
+        wandb.init(project="point_env_goal", name=f"{index}_td3_model")
 
-        eval_work_dir = os.path.join(global_dir,"point_env_sparse"+str(index))
+        eval_work_dir = os.path.join(global_dir,"point_env_"+str(index))
         eval_and_save_video(env,eval_work_dir)
 
 
