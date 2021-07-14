@@ -117,7 +117,7 @@ class Reach_PointMass(ReachNav):
         self.viewer.cam.lookat[1] = 0.
         self.viewer.cam.lookat[2] = 0.5
         #pass
-    def get_image(self, width=400, height=400):
+    def get_image(self, width=84, height=84):
         # move the target outside the camera frame 
         site_id = self.sim.model.site_name2id('target0')
         if self.init_site is not None :
@@ -147,7 +147,7 @@ class Reach_PointMass(ReachNav):
         # self._render_callback() = None
         
         
-        goal_image =  self.get_image() 
+        goal_image =  self.get_image(width=84, height=84) 
         
         self.set_state(qpos, qvel)
         self.sim.forward()
@@ -162,7 +162,7 @@ class Reach_PointMass(ReachNav):
             
             'achieved_goal' : self.get_body_com("torso")[:2],
             'desired_goal' : self.target,
-            'image_observation': self.get_image().transpose(2,0,1),
+            'image_observation': self.get_image(width=84, height=84).transpose(2,0,1),
             'desired_goal_image': self.get_goal_image().transpose(2,0,1)
             
             
